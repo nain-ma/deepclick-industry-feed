@@ -553,3 +553,80 @@ export function updateSourceFailure(db, sourceId, errorMessage) {
     WHERE id = ? AND fetch_error_count >= 5
   `).run(sourceId);
 }
+
+// ── Raw Items Query Functions ──
+
+/**
+ * Get comprehensive pipeline stats: item counts, source health, per-source breakdown.
+ * @param {import('better-sqlite3').Database} db
+ * @returns {{ items: object, sources: object, bySource: Array }}
+ */
+export function getRawItemStats(db) {
+  const items = db.prepare(`
+    SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN fetched_at >= datetime('now', '-24 hours') THEN 1 ELSE 0 END) as last24h,
+      MIN(fetched_at) as oldest,
+      MAX(fetched_at) as newest
+    FROM raw_items
+  `).get();
+
+  const sources = db.prepare(`
+    SELECT
+      COUNT(*) as total_sources,
+      SUM(CASE WHEN is_active = 1 AND is_deleted = 0 THEN 1 ELSE 0 END) as active,
+      SUM(CASE WHEN is_active = 0 AND is_deleted = 0 THEN 1 ELSE 0 END) as paused,
+      SUM(CASE WHEN is_deleted = 1 THEN 1 ELSE 0 END) as deleted,
+      SUM(CASE WHEN fetch_error_count > 0 AND is_active = 1 THEN 1 ELSE 0 END) as erroring,
+      MAX(last_fetched_at) as last_collection_at
+    FROM sources
+  `).get();
+
+  const bySource = db.prepare(`
+    SELECT
+      s.id, s.name, s.type, s.is_active, s.fetch_error_count,
+      s.last_fetched_at, s.last_success_at, s.last_error,
+      COUNT(ri.id) as item_count
+    FROM sources s
+    LEFT JOIN raw_items ri ON ri.source_id = s.id
+    WHERE s.is_deleted = 0
+    GROUP BY s.id
+    ORDER BY item_count DESC
+  `).all();
+
+  return { items, sources, bySource };
+}
+
+/**
+ * Get raw items joined with source metadata, filtered by time window and optional source IDs.
+ * Uses fetched_at (indexed) as primary time filter.
+ * @param {import('better-sqlite3').Database} db
+ * @param {{ hours?: number, limit?: number, sourceIds?: number[] }} options
+ * @returns {Array}
+ */
+export function getRawItemsForDigest(db, { hours = 24, limit = 200, sourceIds } = {}) {
+  let sql = `
+    SELECT ri.id, ri.source_id, ri.title, ri.url, ri.author, ri.content,
+           ri.published_at, ri.fetched_at, ri.metadata,
+           s.name as source_name, s.type as source_type
+    FROM raw_items ri
+    JOIN sources s ON ri.source_id = s.id
+    WHERE ri.fetched_at >= datetime('now', '-' || ? || ' hours')
+      AND s.is_active = 1
+      AND s.is_deleted = 0
+  `;
+  const params = [hours];
+
+  if (sourceIds && sourceIds.length > 0) {
+    sql += `  AND ri.source_id IN (${sourceIds.map(() => '?').join(',')})`;
+    params.push(...sourceIds);
+  }
+
+  sql += `
+    ORDER BY ri.fetched_at DESC
+    LIMIT ?
+  `;
+  params.push(limit);
+
+  return db.prepare(sql).all(...params);
+}
