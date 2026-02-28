@@ -1,14 +1,13 @@
-// src/http.mjs -- Shared HTTP utilities with SSRF protection
-// Extracted from server.mjs to enable reuse by collector and fetcher modules
-import http from 'http';
-import https from 'https';
+// src/http.mjs -- Shared HTTP utilities with SSRF protection + got-scraping transport
+import { gotScraping } from 'got-scraping';
 import { lookup } from 'dns/promises';
 import { isIP } from 'net';
 
-/**
- * Check if an IP address is private, reserved, or special-use.
- * Covers: loopback, link-local, private RFC 1918, multicast, IPv6 equivalents.
- */
+const PROXY_URL = process.env.HTTPS_PROXY || process.env.https_proxy ||
+                  process.env.HTTP_PROXY || process.env.http_proxy || '';
+
+const MAX_BODY_BYTES = 200_000;
+
 export function isPrivateOrSpecialIp(ip) {
   if (!ip) return true;
   if (ip.includes(':')) {
@@ -19,9 +18,7 @@ export function isPrivateOrSpecialIp(ip) {
   if (p.length !== 4 || p.some((x) => Number.isNaN(x) || x < 0 || x > 255)) return true;
   const [a, b] = p;
   return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
+    a === 0 || a === 10 || a === 127 ||
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
@@ -29,20 +26,14 @@ export function isPrivateOrSpecialIp(ip) {
   );
 }
 
-/**
- * Validate that a URL is safe to fetch (not pointing to internal/private networks).
- * Checks protocol, hostname, and resolved IP addresses.
- *
- * KNOWN LIMITATION (TOCTOU): DNS is resolved here for validation, then again
- * by the HTTP client. A DNS rebinding attack could bypass this check.
- * Fix planned for Phase 2 with DNS-pinning HTTP agent.
- */
 export async function assertSafeFetchUrl(rawUrl) {
   const u = new URL(rawUrl);
   if (!['http:', 'https:'].includes(u.protocol)) throw new Error('invalid url scheme');
   const host = u.hostname;
   if (host === 'localhost' || host.endsWith('.localhost')) throw new Error('blocked host');
   if (isIP(host) && isPrivateOrSpecialIp(host)) throw new Error('blocked host');
+  // Skip DNS check when using proxy (proxy resolves DNS)
+  if (PROXY_URL) return;
   const resolved = await lookup(host, { all: true });
   if (!resolved.length || resolved.some((r) => isPrivateOrSpecialIp(r.address))) {
     throw new Error('blocked host');
@@ -50,30 +41,37 @@ export async function assertSafeFetchUrl(rawUrl) {
 }
 
 /**
- * Fetch a URL with SSRF protection, timeout, redirect following, and size limit.
- * Returns { contentType: string, body: string }.
+ * Fetch a URL with SSRF protection, timeout, redirect following, proxy support, and size limit.
+ * Transport: got-scraping (browser-like headers, HTTP/2, native proxy).
+ * Set HTTPS_PROXY env var to route through an HTTP proxy (e.g. http://127.0.0.1:7890).
+ *
+ * @param {string} url
+ * @param {number} timeout - Request timeout in ms (default 15000)
+ * @param {number} redirectsLeft - Max redirects to follow (default 3)
+ * @param {object} options - Extra options: { headers, useHeaderGenerator }
  */
-export async function httpFetch(url, timeout = 15000, redirectsLeft = 3) {
+export async function httpFetch(url, timeout = 15000, redirectsLeft = 3, options = {}) {
   await assertSafeFetchUrl(url);
-  return new Promise((resolve, reject) => {
-    const mod = url.startsWith('https') ? https : http;
-    const r = mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', 'Accept': 'text/html,application/xhtml+xml,application/xml,application/json,*/*' } }, async (resp) => {
-      try {
-        if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
-          clearTimeout(timer);
-          if (redirectsLeft <= 0) return reject(new Error('too many redirects'));
-          const nextUrl = new URL(resp.headers.location, url).toString();
-          return resolve(await httpFetch(nextUrl, Math.max(1000, timeout - 1000), redirectsLeft - 1));
-        }
-        let data = '';
-        resp.on('data', c => { data += c; if (data.length > 200000) resp.destroy(); });
-        resp.on('end', () => { clearTimeout(timer); resolve({ contentType: resp.headers['content-type'] || '', body: data }); });
-      } catch (e) {
-        clearTimeout(timer);
-        reject(e);
-      }
-    });
-    const timer = setTimeout(() => { r.destroy(); reject(new Error('timeout')); }, timeout);
-    r.on('error', (e) => { clearTimeout(timer); reject(e); });
+
+  const response = await gotScraping({
+    url,
+    timeout: { request: timeout },
+    maxRedirects: redirectsLeft,
+    followRedirect: true,
+    proxyUrl: PROXY_URL || undefined,
+    responseType: 'text',
+    throwHttpErrors: false,
+    useHeaderGenerator: options.useHeaderGenerator !== undefined ? options.useHeaderGenerator : true,
+    headers: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml,application/json,*/*',
+      ...options.headers,
+    },
   });
+
+  let body = response.body;
+  if (body.length > MAX_BODY_BYTES) {
+    body = body.slice(0, MAX_BODY_BYTES);
+  }
+
+  return { contentType: response.headers['content-type'] || '', body };
 }

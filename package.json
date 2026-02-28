@@ -21,8 +21,9 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@extractus/feed-extractor": "^7.1.7",
     "better-sqlite3": "^11.0.0",
     "cheerio": "^1.2.0",
-    "fast-xml-parser": "^5.4.1"
+    "got-scraping": "^4.2.1"
   }
 }

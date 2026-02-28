@@ -8,6 +8,7 @@ import { fetchWebsite } from './fetchers/website.mjs';
 import { fetchReddit } from './fetchers/reddit.mjs';
 import { fetchXProxy } from './fetchers/x-proxy.mjs';
 import { fetchCustomApi } from './fetchers/custom-api.mjs';
+import { fetchHackerNews } from './fetchers/hackernews.mjs';
 
 /**
  * Maps source types to their fetcher functions.
@@ -20,7 +21,7 @@ const FETCHER_MAP = {
   reddit:          fetchReddit,
   twitter_feed:    fetchXProxy,
   twitter_list:    fetchXProxy,
-  hackernews:      fetchCustomApi,   // HN API is a custom JSON API
+  hackernews:      fetchHackerNews,  // HN via Algolia Search API
   github_trending: fetchCustomApi,   // GitHub trending is a custom API
   custom_api:      fetchCustomApi,
 };
