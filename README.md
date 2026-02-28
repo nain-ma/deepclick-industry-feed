@@ -53,7 +53,7 @@
 
 ```bash
 # 克隆仓库（使用 deepclick 分支）
-git clone -b codex/deepclick-industry-feed https://github.com/kevinho/clawfeed.git deepclick-radar
+git clone -b codex/deepclick-industry-feed https://github.com/nain-ma/deepclick-industry-feed.git deepclick-radar
 cd deepclick-radar
 npm install
 ```
@@ -62,7 +62,7 @@ npm install
 
 ```bash
 cd ~/.openclaw/skills/
-git clone -b codex/deepclick-industry-feed https://github.com/kevinho/clawfeed.git deepclick-radar
+git clone -b codex/deepclick-industry-feed https://github.com/nain-ma/deepclick-industry-feed.git deepclick-radar
 cd deepclick-radar && npm install
 ```
 
@@ -72,7 +72,7 @@ OpenClaw 会自动识别 `SKILL.md` 并加载。
 
 ```bash
 cd ~/.zylos/skills/
-git clone -b codex/deepclick-industry-feed https://github.com/kevinho/clawfeed.git deepclick-radar
+git clone -b codex/deepclick-industry-feed https://github.com/nain-ma/deepclick-industry-feed.git deepclick-radar
 cd deepclick-radar && npm install
 ```
 
