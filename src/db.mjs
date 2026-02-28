@@ -26,6 +26,7 @@ export function getDb(dbPath) {
   _db = new Database(p);
   _db.pragma('journal_mode = WAL');
   _db.pragma('foreign_keys = ON');
+  _db.pragma('busy_timeout = 5000');
   // Run migrations
   const sql = readFileSync(join(ROOT, 'migrations', '001_init.sql'), 'utf8');
   _db.exec(sql);
@@ -465,4 +466,90 @@ export function getConfig(db) {
 export function setConfig(db, key, value) {
   const v = typeof value === 'string' ? value : JSON.stringify(value);
   db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run(key, v);
+}
+
+// ── Collection Helpers ──
+
+/**
+ * Batch insert normalized items into raw_items.
+ * Uses INSERT OR IGNORE for dedup via UNIQUE(source_id, dedup_key).
+ * Returns the number of actually inserted rows.
+ */
+export function insertRawItemsBatch(db, sourceId, items) {
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO raw_items
+      (source_id, title, url, author, content, published_at, dedup_key, metadata)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertMany = db.transaction((rows) => {
+    let inserted = 0;
+    for (const item of rows) {
+      const info = stmt.run(
+        sourceId,
+        item.title || '',
+        item.url || '',
+        item.author || '',
+        item.content || '',
+        item.published_at || null,
+        item.dedup_key,
+        item.metadata || '{}'
+      );
+      inserted += info.changes;
+    }
+    return inserted;
+  });
+  return insertMany(items);
+}
+
+/**
+ * Get sources that are due for fetching.
+ * A source is due if it is active, not deleted, and either never fetched
+ * or last fetched more than intervalMinutes ago.
+ */
+export function getDueSources(db, intervalMinutes = 60) {
+  return db.prepare(`
+    SELECT * FROM sources
+    WHERE is_active = 1
+      AND is_deleted = 0
+      AND (last_fetched_at IS NULL
+           OR last_fetched_at < datetime('now', '-' || ? || ' minutes'))
+    ORDER BY last_fetched_at ASC NULLS FIRST
+  `).all(intervalMinutes);
+}
+
+/**
+ * Record a successful fetch for a source.
+ * Resets error count, updates timestamps, increments fetch_count.
+ */
+export function updateSourceSuccess(db, sourceId) {
+  db.prepare(`
+    UPDATE sources SET
+      last_fetched_at = datetime('now'),
+      last_success_at = datetime('now'),
+      fetch_error_count = 0,
+      last_error = NULL,
+      fetch_count = fetch_count + 1
+    WHERE id = ?
+  `).run(sourceId);
+}
+
+/**
+ * Record a failed fetch for a source.
+ * Increments error count, records error message (truncated to 500 chars).
+ * Auto-pauses source after 5 consecutive failures (COLL-04).
+ */
+export function updateSourceFailure(db, sourceId, errorMessage) {
+  db.prepare(`
+    UPDATE sources SET
+      last_fetched_at = datetime('now'),
+      fetch_error_count = fetch_error_count + 1,
+      last_error = ?
+    WHERE id = ?
+  `).run((errorMessage || '').slice(0, 500), sourceId);
+
+  // Auto-pause after 5 consecutive failures (COLL-04)
+  db.prepare(`
+    UPDATE sources SET is_active = 0
+    WHERE id = ? AND fetch_error_count >= 5
+  `).run(sourceId);
 }
