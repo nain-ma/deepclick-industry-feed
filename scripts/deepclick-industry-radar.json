@@ -1,8 +1,8 @@
 [
   {
-    "name": "Meta for Business News",
-    "type": "website",
-    "config": { "url": "https://www.facebook.com/business/news" }
+    "name": "Meta Newsroom",
+    "type": "rss",
+    "config": { "url": "https://about.fb.com/news/feed/" }
   },
   {
     "name": "Social Media Examiner",
@@ -71,8 +71,8 @@
   },
   {
     "name": "Adjust Blog",
-    "type": "website",
-    "config": { "url": "https://www.adjust.com/blog/" }
+    "type": "rss",
+    "config": { "url": "https://www.adjust.com/blog/feed/" }
   },
   {
     "name": "WebKit Blog",
@@ -86,8 +86,8 @@
   },
   {
     "name": "IAB Tech Lab",
-    "type": "website",
-    "config": { "url": "https://iabtechlab.com/blog/" }
+    "type": "rss",
+    "config": { "url": "https://iabtechlab.com/feed/" }
   },
   {
     "name": "r/PPC",
@@ -105,9 +105,9 @@
     "config": { "subreddit": "digital_marketing", "sort": "hot", "limit": 20 }
   },
   {
-    "name": "Growth Hackers",
-    "type": "website",
-    "config": { "url": "https://growthhackers.com/articles" }
+    "name": "Google Ads & Commerce Blog",
+    "type": "rss",
+    "config": { "url": "https://blog.google/products/ads-commerce/rss/" }
   },
   {
     "name": "Hacker News",

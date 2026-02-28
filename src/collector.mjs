@@ -26,8 +26,38 @@ const FETCHER_MAP = {
 };
 
 /**
+ * Retry a function with exponential backoff.
+ */
+async function withRetry(fn, retries = 1, delay = 2000) {
+  try {
+    return await fn();
+  } catch (err) {
+    if (retries <= 0) throw err;
+    await new Promise(r => setTimeout(r, delay));
+    return withRetry(fn, retries - 1, delay * 2);
+  }
+}
+
+/**
+ * Run async tasks concurrently with a concurrency limit.
+ */
+async function runConcurrent(tasks, concurrency = 5) {
+  let idx = 0;
+  async function worker() {
+    while (idx < tasks.length) {
+      const i = idx++;
+      await tasks[i]();
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker())
+  );
+}
+
+/**
  * Run one collection cycle: fetch all due sources and return a summary.
  * Each source is isolated -- one failure does not abort the run.
+ * Uses concurrency pool (5 parallel) and 1 retry per source.
  *
  * @param {import('better-sqlite3').Database} db
  * @param {{ intervalMinutes?: number }} options
@@ -38,18 +68,18 @@ export async function runCollection(db, options = {}) {
   const dueSources = getDueSources(db, intervalMinutes);
   const results = { sources: dueSources.length, processed: 0, items: 0, errors: 0 };
 
-  for (const source of dueSources) {
+  const tasks = dueSources.map(source => async () => {
     const fetcher = FETCHER_MAP[source.type];
 
     if (!fetcher) {
       console.warn('No fetcher for source type: ' + source.type);
       results.errors++;
       updateSourceFailure(db, source.id, 'No fetcher for type: ' + source.type);
-      continue;
+      return;
     }
 
     try {
-      const items = await fetcher(source, httpFetch);
+      const items = await withRetry(() => fetcher(source, httpFetch), 1, 2000);
       const inserted = insertRawItemsBatch(db, source.id, items);
       updateSourceSuccess(db, source.id);
       results.processed++;
@@ -60,8 +90,9 @@ export async function runCollection(db, options = {}) {
       results.errors++;
       console.error('Failed ' + source.name + ': ' + err.message);
     }
-  }
+  });
 
+  await runConcurrent(tasks, 5);
   return results;
 }
 

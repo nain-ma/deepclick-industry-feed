@@ -53,11 +53,11 @@ export async function assertSafeFetchUrl(rawUrl) {
  * Fetch a URL with SSRF protection, timeout, redirect following, and size limit.
  * Returns { contentType: string, body: string }.
  */
-export async function httpFetch(url, timeout = 5000, redirectsLeft = 3) {
+export async function httpFetch(url, timeout = 15000, redirectsLeft = 3) {
   await assertSafeFetchUrl(url);
   return new Promise((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http;
-    const r = mod.get(url, { headers: { 'User-Agent': 'AI-Digest/1.0', 'Accept': 'text/html,application/xhtml+xml,application/xml,application/json,*/*' } }, async (resp) => {
+    const r = mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', 'Accept': 'text/html,application/xhtml+xml,application/xml,application/json,*/*' } }, async (resp) => {
       try {
         if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
           clearTimeout(timer);

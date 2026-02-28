@@ -1,3 +1,11 @@
+---
+name: clawfeed-deepclick-industry-feed
+description: "AI-powered news digest tool with DeepClick industry intelligence extensions. Collects from RSS, websites, Reddit, X proxy, and custom APIs."
+metadata: { "requires": { "bins": ["node"], "env": [] } }
+user-invokable: false
+disable-model-invocation: false
+---
+
 # ClawFeed
 
 AI-powered news digest tool. Automatically generates structured summaries (4H/daily/weekly/monthly) from Twitter and RSS feeds.
