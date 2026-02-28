@@ -1,0 +1,1146 @@
+{
+  "exported_at": "2026-02-28T11:05:46.768Z",
+  "db_path": "/Users/qiqian/.openclaw/skills/deepclick-radar/data/digest.db",
+  "total_sources": 56,
+  "by_type": {
+    "reddit": 13,
+    "rss": 17,
+    "twitter_feed": 26
+  },
+  "sources": [
+    {
+      "id": 1,
+      "name": "r/FacebookAds",
+      "type": "reddit",
+      "config": {
+        "subreddit": "FacebookAds",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:39",
+        "last_success_at": "2026-02-28 10:04:39",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 2,
+      "name": "r/PPC",
+      "type": "reddit",
+      "config": {
+        "subreddit": "PPC",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:39",
+        "last_success_at": "2026-02-28 10:04:39",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 3,
+      "name": "r/marketing",
+      "type": "reddit",
+      "config": {
+        "subreddit": "marketing",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:39",
+        "last_success_at": "2026-02-28 10:04:39",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 4,
+      "name": "Search Engine Journal (PPC)",
+      "type": "rss",
+      "config": {
+        "url": "https://www.searchenginejournal.com/category/paid-media/pay-per-click/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:38",
+        "last_success_at": "2026-02-28 10:04:38",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 5,
+      "name": "Search Engine Land (PPC)",
+      "type": "rss",
+      "config": {
+        "url": "https://searchengineland.com/library/channel/paid-search/feed"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:43",
+        "last_success_at": "2026-02-28 09:29:57",
+        "fetch_error_count": 1,
+        "last_error": "http 404"
+      }
+    },
+    {
+      "id": 6,
+      "name": "Social Media Examiner",
+      "type": "rss",
+      "config": {
+        "url": "https://www.socialmediaexaminer.com/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:40",
+        "last_success_at": "2026-02-28 10:04:40",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 7,
+      "name": "r/adops",
+      "type": "reddit",
+      "config": {
+        "subreddit": "adops",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:40",
+        "last_success_at": "2026-02-28 10:04:40",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 8,
+      "name": "r/programmatic",
+      "type": "reddit",
+      "config": {
+        "subreddit": "programmatic",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:40",
+        "last_success_at": "2026-02-28 10:04:40",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 9,
+      "name": "r/adtech",
+      "type": "reddit",
+      "config": {
+        "subreddit": "adtech",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:41",
+        "last_success_at": "2026-02-28 10:04:41",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 10,
+      "name": "r/growthhacking",
+      "type": "reddit",
+      "config": {
+        "subreddit": "growthhacking",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:41",
+        "last_success_at": "2026-02-28 10:04:41",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 11,
+      "name": "r/privacy",
+      "type": "reddit",
+      "config": {
+        "subreddit": "privacy",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:42",
+        "last_success_at": "2026-02-28 10:04:42",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 12,
+      "name": "AdExchanger",
+      "type": "rss",
+      "config": {
+        "url": "https://www.adexchanger.com/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:41",
+        "last_success_at": "2026-02-28 10:04:41",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 13,
+      "name": "MarTech.org",
+      "type": "rss",
+      "config": {
+        "url": "https://martech.org/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:42",
+        "last_success_at": "2026-02-28 10:04:42",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 14,
+      "name": "Meta for Developers Blog",
+      "type": "rss",
+      "config": {
+        "url": "https://developers.facebook.com/blog/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:41",
+        "last_success_at": "2026-02-28 10:04:41",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 15,
+      "name": "AppsFlyer Blog",
+      "type": "rss",
+      "config": {
+        "url": "https://www.appsflyer.com/blog/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:43",
+        "last_success_at": "2026-02-28 10:04:43",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 16,
+      "name": "Adjust Blog",
+      "type": "rss",
+      "config": {
+        "url": "https://www.adjust.com/blog/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:44",
+        "last_success_at": "2026-02-28 09:31:55",
+        "fetch_error_count": 1,
+        "last_error": "http 429"
+      }
+    },
+    {
+      "id": 17,
+      "name": "Branch Blog",
+      "type": "rss",
+      "config": {
+        "url": "https://www.branch.io/resources/blog/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:45",
+        "last_success_at": "2026-02-28 09:31:56",
+        "fetch_error_count": 1,
+        "last_error": "http 404"
+      }
+    },
+    {
+      "id": 18,
+      "name": "Mobile Dev Memo",
+      "type": "rss",
+      "config": {
+        "url": "https://mobiledevmemo.com/feed"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:44",
+        "last_success_at": "2026-02-28 10:04:44",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 19,
+      "name": "@MetaNewsroom",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@MetaNewsroom",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:48",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 20,
+      "name": "@alex_schultz",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@alex_schultz",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:49",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 21,
+      "name": "@benthompson",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@benthompson",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:51",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 22,
+      "name": "@MobileDevMemo",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@MobileDevMemo",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:50",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 23,
+      "name": "@appsflyer",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@appsflyer",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:51",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 24,
+      "name": "r/digital_marketing",
+      "type": "reddit",
+      "config": {
+        "subreddit": "digital_marketing",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:50",
+        "last_success_at": "2026-02-28 10:04:50",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 25,
+      "name": "r/socialmedia",
+      "type": "reddit",
+      "config": {
+        "subreddit": "socialmedia",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:50",
+        "last_success_at": "2026-02-28 10:04:50",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 26,
+      "name": "r/Entrepreneur",
+      "type": "reddit",
+      "config": {
+        "subreddit": "Entrepreneur",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:52",
+        "last_success_at": "2026-02-28 10:04:52",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 27,
+      "name": "r/startups",
+      "type": "reddit",
+      "config": {
+        "subreddit": "startups",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:51",
+        "last_success_at": "2026-02-28 10:04:51",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 28,
+      "name": "r/ecommerce",
+      "type": "reddit",
+      "config": {
+        "subreddit": "ecommerce",
+        "sort": "hot",
+        "limit": 20
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:52",
+        "last_success_at": "2026-02-28 10:04:52",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 29,
+      "name": "Meta Newsroom RSS",
+      "type": "rss",
+      "config": {
+        "url": "https://about.fb.com/news/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:53",
+        "last_success_at": "2026-02-28 10:04:53",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 30,
+      "name": "Think with Google RSS",
+      "type": "rss",
+      "config": {
+        "url": "https://www.thinkwithgoogle.com/intl/en-apac/feed.xml"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:52",
+        "last_success_at": "2026-02-28 10:04:52",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 31,
+      "name": "NiemanLab (platform/media trends)",
+      "type": "rss",
+      "config": {
+        "url": "https://www.niemanlab.org/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:53",
+        "last_success_at": "2026-02-28 10:04:53",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 32,
+      "name": "The Verge - Policy",
+      "type": "rss",
+      "config": {
+        "url": "https://www.theverge.com/policy/rss/index.xml"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:54",
+        "last_success_at": "2026-02-28 09:35:27",
+        "fetch_error_count": 1,
+        "last_error": "http 404"
+      }
+    },
+    {
+      "id": 33,
+      "name": "TechCrunch",
+      "type": "rss",
+      "config": {
+        "url": "https://techcrunch.com/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:52",
+        "last_success_at": "2026-02-28 10:04:52",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 34,
+      "name": "Adweek",
+      "type": "rss",
+      "config": {
+        "url": "https://www.adweek.com/feed/"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:53",
+        "last_success_at": "2026-02-28 10:04:53",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 35,
+      "name": "The Information (public posts)",
+      "type": "rss",
+      "config": {
+        "url": "https://www.theinformation.com/feed"
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:53",
+        "last_success_at": "2026-02-28 10:04:53",
+        "fetch_error_count": 0,
+        "last_error": null
+      }
+    },
+    {
+      "id": 36,
+      "name": "@Meta",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@Meta",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:59",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 37,
+      "name": "@metaforbusiness",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@metaforbusiness",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:59",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 38,
+      "name": "@GoogleAds",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@GoogleAds",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:59",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 39,
+      "name": "@SearchEngineLand",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@sengineland",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:04:59",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 40,
+      "name": "@adexchanger",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@adexchanger",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:00",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 41,
+      "name": "@Appsflyer",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@Appsflyer",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:05",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 42,
+      "name": "Meta for Business",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@MetaForBusiness",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:05",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 43,
+      "name": "Aidan Henry",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@aidanhenry",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:05",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 44,
+      "name": "PPC Hero",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@ppchero",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:05",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 45,
+      "name": "Ginny Marvin",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@GinnyMarvin",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:07",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 46,
+      "name": "Duane Brown",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@duanebrown",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:12",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 47,
+      "name": "SavvyRevenue",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@savvyrevenue",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:12",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 48,
+      "name": "KlientBoost",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@klientboost",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:13",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 49,
+      "name": "AdsLiaison",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@adsliaison",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:13",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 50,
+      "name": "Mobile Dev Memo",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@mobiledevmemo",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:13",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 51,
+      "name": "Eric Seufert",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@eric_seufert",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:18",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 52,
+      "name": "Adjust",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@adjustcom",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:18",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 53,
+      "name": "Branch",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@branchmetrics",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:20",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 54,
+      "name": "Matt Navarra",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@mattnavarra",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:19",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 55,
+      "name": "Jon Loomer",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@JonLoomer",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:19",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    },
+    {
+      "id": 56,
+      "name": "Andrew Foxwell",
+      "type": "twitter_feed",
+      "config": {
+        "handle": "@andrewfoxwell",
+        "proxy_base": "https://twiiit.com",
+        "proxy_candidates": [
+          "https://twiiit.com",
+          "https://rsshub.app",
+          "https://rss-bridge.org/bridge01"
+        ]
+      },
+      "status": {
+        "is_active": 1,
+        "is_public": 1,
+        "is_deleted": 0,
+        "last_fetched_at": "2026-02-28 10:05:23",
+        "last_success_at": null,
+        "fetch_error_count": 1,
+        "last_error": "http 403"
+      }
+    }
+  ]
+}
