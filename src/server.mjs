@@ -6,7 +6,8 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
 import { isPrivateOrSpecialIp, assertSafeFetchUrl, httpFetch } from './http.mjs';
-import { getDb, listDigests, getDigest, createDigest, listMarks, createMark, deleteMark, getConfig, setConfig, upsertUser, createSession, getSession, deleteSession, listSources, getSource, createSource, updateSource, deleteSource, getSourceByTypeConfig, getUserBySlug, listDigestsByUser, countDigestsByUser, createPack, getPack, getPackBySlug, listPacks, incrementPackInstall, deletePack, listSubscriptions, subscribe, unsubscribe, bulkSubscribe, isSubscribed, createFeedback, getUserFeedback, getAllFeedback, replyToFeedback, updateFeedbackStatus, markFeedbackRead, getUnreadFeedbackCount } from './db.mjs';
+import { runCollection } from './collector.mjs';
+import { getDb, listDigests, getDigest, createDigest, listMarks, createMark, deleteMark, getConfig, setConfig, upsertUser, createSession, getSession, deleteSession, listSources, getSource, createSource, updateSource, deleteSource, getSourceByTypeConfig, getUserBySlug, listDigestsByUser, countDigestsByUser, createPack, getPack, getPackBySlug, listPacks, incrementPackInstall, deletePack, listSubscriptions, subscribe, unsubscribe, bulkSubscribe, isSubscribed, createFeedback, getUserFeedback, getAllFeedback, replyToFeedback, updateFeedbackStatus, markFeedbackRead, getUnreadFeedbackCount, getRawItemStats, getRawItemsForDigest } from './db.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -797,6 +798,35 @@ const server = createServer(async (req, res) => {
       const body = await parseBody(req);
       for (const [k, v] of Object.entries(body)) setConfig(db, k, v);
       return json(res, { ok: true });
+    }
+
+    // ── Collection & Raw Items endpoints (API key auth) ──
+
+    if (req.method === 'POST' && path === '/api/collect/run') {
+      const authHeader = req.headers.authorization || '';
+      const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      if (!API_KEY || bearerKey !== API_KEY) return json(res, { error: 'invalid api key' }, 401);
+      const body = await parseBody(req);
+      const intervalMinutes = parseInt(body.intervalMinutes) || 60;
+      const results = await runCollection(db, { intervalMinutes });
+      return json(res, results);
+    }
+
+    if (req.method === 'GET' && path === '/api/raw-items/stats') {
+      const authHeader = req.headers.authorization || '';
+      const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      if (!API_KEY || bearerKey !== API_KEY) return json(res, { error: 'invalid api key' }, 401);
+      return json(res, getRawItemStats(db));
+    }
+
+    if (req.method === 'GET' && path === '/api/raw-items/for-digest') {
+      const authHeader = req.headers.authorization || '';
+      const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      if (!API_KEY || bearerKey !== API_KEY) return json(res, { error: 'invalid api key' }, 401);
+      const hours = parseInt(params.get('hours') || '24');
+      const limit = Math.min(parseInt(params.get('limit') || '200'), 1000);
+      const sourceIds = params.get('sources') ? params.get('sources').split(',').map(Number).filter(Boolean) : undefined;
+      return json(res, getRawItemsForDigest(db, { hours, limit, sourceIds }));
     }
 
     json(res, { error: 'not found' }, 404);
