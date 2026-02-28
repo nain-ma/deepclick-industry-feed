@@ -5,8 +5,7 @@ import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
-import { lookup } from 'dns/promises';
-import { isIP } from 'net';
+import { isPrivateOrSpecialIp, assertSafeFetchUrl, httpFetch } from './http.mjs';
 import { getDb, listDigests, getDigest, createDigest, listMarks, createMark, deleteMark, getConfig, setConfig, upsertUser, createSession, getSession, deleteSession, listSources, getSource, createSource, updateSource, deleteSource, getSourceByTypeConfig, getUserBySlug, listDigestsByUser, countDigestsByUser, createPack, getPack, getPackBySlug, listPacks, incrementPackInstall, deletePack, listSubscriptions, subscribe, unsubscribe, bulkSubscribe, isSubscribed, createFeedback, getUserFeedback, getAllFeedback, replyToFeedback, updateFeedbackStatus, markFeedbackRead, getUnreadFeedbackCount } from './db.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -128,38 +127,6 @@ function verifyOAuthState(state) {
   }
 }
 
-function isPrivateOrSpecialIp(ip) {
-  if (!ip) return true;
-  if (ip.includes(':')) {
-    const n = ip.toLowerCase();
-    return n === '::1' || n.startsWith('fc') || n.startsWith('fd') || n.startsWith('fe80:') || n.startsWith('::ffff:127.');
-  }
-  const p = ip.split('.').map(Number);
-  if (p.length !== 4 || p.some((x) => Number.isNaN(x) || x < 0 || x > 255)) return true;
-  const [a, b] = p;
-  return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) ||
-    a >= 224
-  );
-}
-
-async function assertSafeFetchUrl(rawUrl) {
-  const u = new URL(rawUrl);
-  if (!['http:', 'https:'].includes(u.protocol)) throw new Error('invalid url scheme');
-  const host = u.hostname;
-  if (host === 'localhost' || host.endsWith('.localhost')) throw new Error('blocked host');
-  if (isIP(host) && isPrivateOrSpecialIp(host)) throw new Error('blocked host');
-  const resolved = await lookup(host, { all: true });
-  if (!resolved.length || resolved.some((r) => isPrivateOrSpecialIp(r.address))) {
-    throw new Error('blocked host');
-  }
-}
-
 // ── Google OAuth helpers ──
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
@@ -212,30 +179,6 @@ function _digestTitle(d, ca) {
 }
 
 // ── Source URL resolver ──
-async function httpFetch(url, timeout = 5000, redirectsLeft = 3) {
-  await assertSafeFetchUrl(url);
-  return new Promise((resolve, reject) => {
-    const mod = url.startsWith('https') ? https : http;
-    const r = mod.get(url, { headers: { 'User-Agent': 'AI-Digest/1.0', 'Accept': 'text/html,application/xhtml+xml,application/xml,application/json,*/*' } }, async (resp) => {
-      try {
-        if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
-          clearTimeout(timer);
-          if (redirectsLeft <= 0) return reject(new Error('too many redirects'));
-          const nextUrl = new URL(resp.headers.location, url).toString();
-          return resolve(await httpFetch(nextUrl, Math.max(1000, timeout - 1000), redirectsLeft - 1));
-        }
-        let data = '';
-        resp.on('data', c => { data += c; if (data.length > 200000) resp.destroy(); });
-        resp.on('end', () => { clearTimeout(timer); resolve({ contentType: resp.headers['content-type'] || '', body: data }); });
-      } catch (e) {
-        clearTimeout(timer);
-        reject(e);
-      }
-    });
-    const timer = setTimeout(() => { r.destroy(); reject(new Error('timeout')); }, timeout);
-    r.on('error', (e) => { clearTimeout(timer); reject(e); });
-  });
-}
 
 function extractRssPreview(xml) {
   const items = [];
