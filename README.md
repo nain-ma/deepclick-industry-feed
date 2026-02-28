@@ -47,10 +47,39 @@
 
 - **DeepClick Industry Radar 源包** — 23 个精选源覆盖 AdTech、MarTech、Post-click/CRO、归因/隐私、增长等垂直领域
 
+## 安装
+
+### 在其他电脑上部署
+
+```bash
+# 克隆仓库（使用 deepclick 分支）
+git clone -b codex/deepclick-industry-feed https://github.com/kevinho/clawfeed.git deepclick-radar
+cd deepclick-radar
+npm install
+```
+
+### 作为 OpenClaw Skill 安装
+
+```bash
+cd ~/.openclaw/skills/
+git clone -b codex/deepclick-industry-feed https://github.com/kevinho/clawfeed.git deepclick-radar
+cd deepclick-radar && npm install
+```
+
+OpenClaw 会自动识别 `SKILL.md` 并加载。
+
+### 作为 Zylos Skill 安装
+
+```bash
+cd ~/.zylos/skills/
+git clone -b codex/deepclick-industry-feed https://github.com/kevinho/clawfeed.git deepclick-radar
+cd deepclick-radar && npm install
+```
+
 ## 快速开始
 
 ```bash
-# 1. 安装依赖
+# 1. 安装依赖（如果上面安装步骤已执行则跳过）
 npm install
 
 # 2. 配置环境变量
