@@ -1,0 +1,117 @@
+[
+  {
+    "name": "Meta for Business News",
+    "type": "website",
+    "config": { "url": "https://www.facebook.com/business/news" }
+  },
+  {
+    "name": "Social Media Examiner",
+    "type": "rss",
+    "config": { "url": "https://www.socialmediaexaminer.com/feed/" }
+  },
+  {
+    "name": "Jon Loomer Digital",
+    "type": "rss",
+    "config": { "url": "https://www.jonloomer.com/feed/" }
+  },
+  {
+    "name": "Search Engine Journal",
+    "type": "rss",
+    "config": { "url": "https://www.searchenginejournal.com/feed/" }
+  },
+  {
+    "name": "Instapage Blog",
+    "type": "rss",
+    "config": { "url": "https://instapage.com/blog/feed" }
+  },
+  {
+    "name": "ConversionXL (CXL)",
+    "type": "rss",
+    "config": { "url": "https://cxl.com/blog/feed/" }
+  },
+  {
+    "name": "VWO Blog",
+    "type": "rss",
+    "config": { "url": "https://vwo.com/blog/feed/" }
+  },
+  {
+    "name": "Optimizely Blog",
+    "type": "rss",
+    "config": { "url": "https://www.optimizely.com/blog/rss.xml" }
+  },
+  {
+    "name": "AdExchanger",
+    "type": "rss",
+    "config": { "url": "https://www.adexchanger.com/feed/" }
+  },
+  {
+    "name": "MarTech.org",
+    "type": "rss",
+    "config": { "url": "https://martech.org/feed/" }
+  },
+  {
+    "name": "Digiday",
+    "type": "rss",
+    "config": { "url": "https://digiday.com/feed/" }
+  },
+  {
+    "name": "TechCrunch Advertising",
+    "type": "rss",
+    "config": { "url": "https://techcrunch.com/tag/advertising/feed/" }
+  },
+  {
+    "name": "r/adops",
+    "type": "reddit",
+    "config": { "subreddit": "adops", "sort": "hot", "limit": 20 }
+  },
+  {
+    "name": "AppsFlyer Blog",
+    "type": "rss",
+    "config": { "url": "https://www.appsflyer.com/blog/feed/" }
+  },
+  {
+    "name": "Adjust Blog",
+    "type": "website",
+    "config": { "url": "https://www.adjust.com/blog/" }
+  },
+  {
+    "name": "WebKit Blog",
+    "type": "rss",
+    "config": { "url": "https://webkit.org/feed/" }
+  },
+  {
+    "name": "Chromium Blog",
+    "type": "rss",
+    "config": { "url": "https://blog.chromium.org/feeds/posts/default" }
+  },
+  {
+    "name": "IAB Tech Lab",
+    "type": "website",
+    "config": { "url": "https://iabtechlab.com/blog/" }
+  },
+  {
+    "name": "r/PPC",
+    "type": "reddit",
+    "config": { "subreddit": "PPC", "sort": "hot", "limit": 20 }
+  },
+  {
+    "name": "r/FacebookAds",
+    "type": "reddit",
+    "config": { "subreddit": "facebookads", "sort": "hot", "limit": 20 }
+  },
+  {
+    "name": "r/DigitalMarketing",
+    "type": "reddit",
+    "config": { "subreddit": "digital_marketing", "sort": "hot", "limit": 20 }
+  },
+  {
+    "name": "Growth Hackers",
+    "type": "website",
+    "config": { "url": "https://growthhackers.com/articles" }
+  },
+  {
+    "name": "Hacker News",
+    "type": "hackernews",
+    "config": { "filter": "top", "min_score": 100 }
+  }
+]
