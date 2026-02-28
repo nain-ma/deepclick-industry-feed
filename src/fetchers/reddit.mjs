@@ -40,7 +40,7 @@ export async function fetchReddit(source, httpFetch) {
 
   const url = `https://www.reddit.com/r/${subreddit}/${sort}.json?limit=${limit}`;
   // Disable browser header generation — Reddit's JSON API returns HTML for browser-like requests
-  const { body } = await httpFetch(url, 15000, 3, {
+  const { body } = await httpFetch(url, 20000, 3, {
     useHeaderGenerator: false,
     headers: { 'User-Agent': 'clawfeed/1.0', 'Accept': 'application/json' },
   });

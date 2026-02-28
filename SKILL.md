@@ -1,5 +1,5 @@
 ---
-name: clawfeed-deepclick-industry-feed
+name: deepclick-radar
 description: "AI-powered news digest tool with DeepClick industry intelligence extensions. Collects from RSS, websites, Reddit, X proxy, and custom APIs."
 metadata: { "requires": { "bins": ["node"], "env": [] } }
 user-invokable: false
