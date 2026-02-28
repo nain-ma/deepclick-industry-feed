@@ -1,252 +1,125 @@
-# ClawFeed
+# DeepClick Radar
 
-> **Stop scrolling. Start knowing.**
+> **行业信号，一网打尽。**
 
-[![ClawHub](https://img.shields.io/badge/ClawHub-clawfeed-blue)](https://clawhub.ai/skills/clawfeed)
-[![GitHub](https://img.shields.io/github/v/tag/kevinho/clawfeed?label=version)](https://github.com/kevinho/clawfeed)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+基于 [ClawFeed](https://github.com/kevinho/clawfeed) 构建的 DeepClick 行业情报系统。自动从 RSS、网站、Reddit、X 代理、自定义 API 等渠道采集信号，生成面向增长负责人的结构化简报，每条信号都解释其对 CPA/CVR 和 click-to-conversion 链路的影响。
 
-[Live Demo: https://clawfeed.kevinhe.io](https://clawfeed.kevinhe.io)
+## 能力概览
 
-AI-powered news digest that curates thousands of sources down to the highlights that matter. Generates structured summaries (4H/daily/weekly/monthly) from Twitter, RSS, and more. Works standalone or as an [OpenClaw](https://github.com/openclaw/openclaw) / [Zylos](https://github.com/zylos-ai) skill.
+### 采集管线 (Collection Pipeline)
 
-![Dashboard](docs/demo.gif)
+5 种 fetcher，覆盖主流信息源类型：
 
-## Features
+| Fetcher | 说明 | 源类型 |
+|---------|------|--------|
+| RSS | 支持 RSS 2.0 / Atom 1.0 / RDF / JSON Feed | `rss`, `digest_feed` |
+| Website | HTML 页面 RSS 自动发现 + 正文提取回退 | `website` |
+| Reddit | 公开 JSON API，获取帖子及评分/评论数 | `reddit` |
+| X Proxy | 通过可配置 RSS 代理桥接 X/Twitter 内容 | `twitter_feed`, `twitter_list` |
+| Custom API | 通用 JSON API，支持 dot-path 字段映射 | `custom_api`, `hackernews`, `github_trending` |
 
-- 📰 **Multi-frequency digests** — 4-hourly, daily, weekly, monthly summaries
-- 📡 **Sources system** — Add Twitter feeds, RSS, HackerNews, Reddit, GitHub Trending, and more
-- 📦 **Source Packs** — Share curated source bundles with the community
-- 📌 **Mark & Deep Dive** — Bookmark content for AI-powered deep analysis
-- 🎯 **Smart curation** — Configurable rules for content filtering and noise reduction
-- 👀 **Follow/Unfollow suggestions** — Based on feed quality analysis
-- 📢 **Feed output** — Subscribe to any user's digest via RSS or JSON Feed
-- 🌐 **Multi-language** — English and Chinese UI
-- 🌙 **Dark/Light mode** — Theme toggle with localStorage persistence
-- 🖥️ **Web dashboard** — SPA for browsing and managing digests
-- 💾 **SQLite storage** — Fast, portable, zero-config database
-- 🔐 **Google OAuth** — Multi-user support with personal bookmarks and sources
+自动特性：
+- **去重** — 基于 `UNIQUE(source_id, dedup_key)` 约束 + SHA-256，同一内容不会重复入库
+- **健康追踪** — 记录每个源的成功/失败次数和最后抓取时间
+- **自动暂停** — 连续失败 5 次的源自动暂停，不再浪费请求
 
-## Installation
+### API 端点
 
-### Option 1: ClawHub (recommended)
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/collect/run` | 手动触发一次采集，返回处理摘要 |
+| GET | `/api/raw-items/stats` | 管线健康概览（条目数、源状态、最近采集时间） |
+| GET | `/api/raw-items/for-digest` | 获取可用于生成简报的过滤内容 |
 
-```bash
-clawhub install clawfeed
-```
+所有新端点均需 Bearer API_KEY 认证。原有 ClawFeed 端点（digests, packs, marks, auth）保持不变。
 
-### Option 2: OpenClaw Skill
+### 内容层 (Content Layer)
 
-```bash
-cd ~/.openclaw/skills/
-git clone https://github.com/kevinho/clawfeed.git
-```
+- **`templates/curation-rules.md`** — 5 级信号优先级体系
+  - Tier 1: 平台与政策风险（最高优先级）
+  - Tier 2: 转化链路优化
+  - Tier 3: 竞争与市场动态
+  - Tier 4: 归因、度量与隐私基础设施
+  - Tier 5: 市场叙事与增长信号
 
-OpenClaw auto-detects `SKILL.md` and loads the skill. The agent can then generate digests via cron, serve the dashboard, and handle bookmark commands.
+- **`templates/digest-prompt.md`** — 6 段式增长负责人简报结构
+  - 警报、转化机会、竞争情报、基础设施观察、市场背景、行动建议
 
-### Option 3: Zylos Skill
+- **DeepClick Industry Radar 源包** — 23 个精选源覆盖 AdTech、MarTech、Post-click/CRO、归因/隐私、增长等垂直领域
 
-```bash
-cd ~/.zylos/skills/
-git clone https://github.com/kevinho/clawfeed.git
-```
-
-### Option 4: Standalone
+## 快速开始
 
 ```bash
-git clone https://github.com/kevinho/clawfeed.git
-cd clawfeed
+# 1. 安装依赖
 npm install
-```
 
-### Option 5: Docker
-```bash
-# Basic usage
-docker run -d -p 8767:8767 kevinho/clawfeed
-
-# With persistent data
-docker run -d -p 8767:8767 -v clawfeed-data:/app/data kevinho/clawfeed
-
-# With environment variables (recommended for production)
-docker run -d -p 8767:8767 \
-  -v clawfeed-data:/app/data \
-  -e ALLOWED_ORIGINS=https://yourdomain.com \
-  -e API_KEY=your-api-key \
-  -e GOOGLE_CLIENT_ID=your-client-id \
-  -e GOOGLE_CLIENT_SECRET=your-client-secret \
-  -e SESSION_SECRET=your-session-secret \
-  kevinho/clawfeed
-```
-
-## Quick Start
-
-```bash
-# 1. Copy and edit environment config
+# 2. 配置环境变量
 cp .env.example .env
-# Edit .env with your settings
+# 编辑 .env，至少设置 API_KEY
 
-# 2. Start the API server
+# 3. 导入 DeepClick 源包
+node scripts/seed-source-pack.mjs
+
+# 4. 启动服务
 npm start
-# → API running on http://127.0.0.1:8767
+# 默认运行在 http://localhost:8767
+
+# 5. 手动触发一次采集
+curl -X POST http://localhost:8767/api/collect/run \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json"
+
+# 6. 查看采集状态
+curl http://localhost:8767/api/raw-items/stats \
+  -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
-## Environment Variables
+## 环境变量
 
-Create a `.env` file in the project root:
+| 变量 | 说明 | 必填 | 默认值 |
+|------|------|------|--------|
+| `DIGEST_PORT` | 服务端口 | 否 | 8767 |
+| `API_KEY` | API 认证密钥（采集/统计端点） | 是 | - |
+| `AI_DIGEST_DB` | SQLite 数据库路径 | 否 | `data/digest.db` |
+| `GOOGLE_CLIENT_ID` | Google OAuth（用户登录） | 否 | - |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth | 否 | - |
+| `SESSION_SECRET` | Session 加密密钥 | 否 | - |
+| `ALLOWED_ORIGINS` | CORS 允许的源 | 否 | localhost |
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | No* | - |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | No* | - |
-| `SESSION_SECRET` | Session encryption key | No* | - |
-| `API_KEY` | API key for digest creation | No | - |
-| `DIGEST_PORT` | Server port | No | 8767 |
-| `ALLOWED_ORIGINS` | Allowed origins for CORS | No | localhost |
+## 项目结构
 
-\*Required for authentication features. Without OAuth, the app runs in read-only mode.
+```
+src/
+├── server.mjs          # HTTP 服务器 + 所有 API 路由
+├── db.mjs              # SQLite 数据库 + 迁移 + 查询函数
+├── http.mjs            # 共享 HTTP 工具 + SSRF 防护
+├── collector.mjs       # 采集编排器（调度 + 健康追踪）
+└── fetchers/
+    ├── rss.mjs         # RSS/Atom/RDF/JSON Feed 解析
+    ├── website.mjs     # RSS 自动发现 + 正文提取
+    ├── reddit.mjs      # Reddit JSON API
+    ├── x-proxy.mjs     # X/Twitter RSS 代理桥接
+    └── custom-api.mjs  # 通用 JSON API + dot-path 导航
 
-## Authentication Setup
+templates/
+├── curation-rules.md   # DeepClick 5 级信号筛选规则
+└── digest-prompt.md    # 6 段式增长简报生成提示词
 
-To enable Google OAuth login:
+scripts/
+├── deepclick-industry-radar.json  # 23 个精选行业源
+└── seed-source-pack.mjs           # 幂等源包导入脚本
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Enable the Google+ API
-4. Create OAuth 2.0 credentials
-5. Add your domain to authorized origins
-6. Add callback URL: `https://yourdomain.com/api/auth/callback`
-7. Set credentials in `.env`
+migrations/
+└── 010_raw_items.sql   # raw_items 表 + 源健康字段
 
-## API
-
-All endpoints prefixed with `/api/`.
-
-### Digests
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `GET` | `/api/digests` | List digests `?type=4h&limit=20&offset=0` | - |
-| `GET` | `/api/digests/:id` | Get single digest | - |
-| `POST` | `/api/digests` | Create digest | API Key |
-
-### Auth
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `GET` | `/api/auth/config` | Auth availability check | - |
-| `GET` | `/api/auth/google` | Start OAuth flow | - |
-| `GET` | `/api/auth/callback` | OAuth callback | - |
-| `GET` | `/api/auth/me` | Current user info | Yes |
-| `POST` | `/api/auth/logout` | Logout | Yes |
-
-### Marks (Bookmarks)
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `GET` | `/api/marks` | List bookmarks | Yes |
-| `POST` | `/api/marks` | Add bookmark `{ url, title?, note? }` | Yes |
-| `DELETE` | `/api/marks/:id` | Remove bookmark | Yes |
-
-### Sources
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `GET` | `/api/sources` | List user's sources | Yes |
-| `POST` | `/api/sources` | Create source `{ name, type, config }` | Yes |
-| `PUT` | `/api/sources/:id` | Update source | Yes |
-| `DELETE` | `/api/sources/:id` | Soft-delete source | Yes |
-| `GET` | `/api/sources/detect` | Auto-detect source type from URL | Yes |
-
-### Source Packs
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `GET` | `/api/packs` | Browse public packs | - |
-| `POST` | `/api/packs` | Create pack from your sources | Yes |
-| `POST` | `/api/packs/:id/install` | Install pack (subscribe to its sources) | Yes |
-
-### Feeds
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `GET` | `/feed/:slug` | User's digest feed (HTML) | - |
-| `GET` | `/feed/:slug.json` | JSON Feed format | - |
-| `GET` | `/feed/:slug.rss` | RSS format | - |
-
-### Config
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `GET` | `/api/changelog` | Changelog `?lang=zh\|en` | - |
-| `GET` | `/api/roadmap` | Roadmap `?lang=zh\|en` | - |
-
-## Reverse Proxy
-
-Example Caddy configuration:
-
-```caddyfile
-handle /digest/api/* {
-    uri strip_prefix /digest/api
-    reverse_proxy localhost:8767
-}
-handle_path /digest/* {
-    root * /path/to/clawfeed/web
-    file_server
-}
+web/
+└── index.html          # SPA 前端（DeepClick Radar 品牌）
 ```
 
-## Customization
+## 基于 ClawFeed
 
-- **Curation rules**: Edit `templates/curation-rules.md` to control content filtering
-- **Digest format**: Edit `templates/digest-prompt.md` to customize AI output format
-
-## Source Types
-
-| Type | Example | Description |
-|------|---------|-------------|
-| `twitter_feed` | `@karpathy` | Twitter/X user feed |
-| `twitter_list` | List URL | Twitter list |
-| `rss` | Any RSS/Atom URL | RSS feed |
-| `hackernews` | HN Front Page | Hacker News |
-| `reddit` | `/r/MachineLearning` | Subreddit |
-| `github_trending` | `language=python` | GitHub trending repos |
-| `website` | Any URL | Website scraping |
-| `digest_feed` | ClawFeed user slug | Another user's digest |
-| `custom_api` | JSON endpoint | Custom API |
-
-## Development
-
-```bash
-npm run dev  # Start with --watch for auto-reload
-```
-
-### Testing
-
-```bash
-cd test
-./setup.sh    # Create test users
-./e2e.sh      # Run 66 E2E tests
-./teardown.sh # Clean up
-```
-
-## Architecture
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for multi-tenant design and scale analysis.
-
-## Roadmap
-
-See [ROADMAP.md](ROADMAP.md) or the in-app roadmap page.
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+DeepClick Radar 是 [ClawFeed v0.8.1](https://github.com/kevinho/clawfeed) 的定制分支，保留了所有原有功能（多频简报、Source Packs、Mark & Deep Dive、Google OAuth、多语言），并新增了行业情报采集管线和 DeepClick 业务定制内容层。
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
-
-Copyright 2026 Kevin He
+MIT
