@@ -564,7 +564,11 @@ function parseCreatedAt(d) {
   if (/^\d{4}$/.test(ca)) {
     return new Date(ca + '-01-01T00:00:00+08:00');
   }
-  return new Date(ca.replace(' ', 'T') + (ca.includes('+') ? '' : '+08:00'));
+  // SQLite datetime from API is UTC string ("YYYY-MM-DD HH:mm:ss")
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(ca)) {
+    return new Date(ca.replace(' ', 'T') + 'Z');
+  }
+  return new Date(ca.replace(' ', 'T'));
 }
 
 function getWeekKey(dt) {
