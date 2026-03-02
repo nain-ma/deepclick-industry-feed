@@ -97,3 +97,45 @@ handle_path /digest/* {
     file_server
 }
 ```
+
+
+## 当前输出规范（2026-03）
+
+- 摘要与结论默认使用**中文**输出。
+- 每条信号使用来源前缀：`@来源名 - 描述`（例如 `@TechCrunch - ...`、`@r/FacebookAds - ...`）。
+- 每条信号末尾单独一行：`原文链接：<url>`。
+- Feed 正文**不展示** `Content Pool (JSON)`。
+
+## 调试与模板迭代（给老板快速看样）
+
+当需要“先看当前模板长什么样，再改版”时，使用工作区调试脚本：
+
+```bash
+cd /Users/qiqian/.openclaw/workspace-blogger-lumi
+python3 feed_template_debug.py   --config feed_debug.config.json   --items feed_debug.items.sample.json   --out feed_preview.md
+```
+
+可调参数：
+- `top_n` / `signals_n`：控制 Top 与 Signals 数量
+- `max_main_chars`：控制主文长度（0 为不截断）
+- `include_content_pool`：是否在调试输出中附结构化池（仅调试用）
+
+> 生产环境按老板口径：由 Agent 主动执行调试并回传预览，不要求老板手动跑脚本。
+
+## Blog 结构化数据源（CLI）
+
+Feed 页面不展示 Content Pool，但可通过 CLI 导出用于自动写作的结构化数据：
+
+```bash
+cd /Users/qiqian/.openclaw/workspace-blogger-lumi
+python3 scripts/export_blog_pool.py --date 2026-03-02 --type all --out outputs/blog_pool_2026-03-02.json
+```
+
+参数说明：
+- `--date`：按 Asia/Shanghai 本地日期筛选（必填）
+- `--type`：`all|4h|daily|weekly|monthly`
+- `--limit`：最多读取多少条 digest（默认 20）
+- `--out`：导出文件路径（`-` 表示打印到 stdout）
+
+典型场景：
+- 需要生成热点 Blog 时，先导出当天/近几天结构化素材，再进入选题与成稿流程。

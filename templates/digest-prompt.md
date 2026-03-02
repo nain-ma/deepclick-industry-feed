@@ -16,7 +16,8 @@ Produce a **flat, scannable feed** — NOT a long-form report. Every signal is o
 🎯 DeepClick Radar | {{date}}
 
 🔥 紧急警报
-• [来源] 信号一句话描述 — 对 DeepClick 影响：具体说明 URL
+• @来源 信号一句话描述 — 对 DeepClick 影响：具体说明
+  原文链接：URL
 • ...
 如无紧急信号，输出："✅ 本期无紧急警报"
 
@@ -67,7 +68,8 @@ Produce a **flat, scannable feed** — NOT a long-form report. Every signal is o
 | 🔧 | Tier 4 | 测量/归因/隐私基础设施变化 |
 | 📊 | Tier 5 | 市场叙事/增长趋势 |
 
-格式：`• [来源名] 一句话描述 — {emoji} 一句话说明对 DeepClick 意味着什么 URL`
+格式：`• @来源名 一句话描述 — {emoji} 一句话说明对 DeepClick 意味着什么
+  原文链接：URL`
 
 排序原则：
 1. 有量化数据的（"CVR 提升 12%"）排前面
