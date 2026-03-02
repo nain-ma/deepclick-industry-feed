@@ -203,6 +203,7 @@
     <div class="tab" data-type="daily">日报</div>
     <div class="tab" data-type="weekly">周报</div>
     <div class="tab" data-type="monthly">月报</div>
+    <div class="tab" data-type="manual">🧪 手动抓取</div>
     <div class="tab" data-type="marks">📌 Mark 收藏</div>
   </div>
   <div id="loginBanner" class="login-banner" style="display:none;">
@@ -249,7 +250,7 @@ const I18N = {
   zh: {
     title: '🎯 DeepClick Radar',
     subtitle: '',
-    tab4h: '8H 简报', tabDaily: '日报', tabWeekly: '周报', tabMonthly: '月报', tabMarks: '📌 Mark 收藏',
+    tab4h: '8H 简报', tabDaily: '日报', tabWeekly: '周报', tabMonthly: '月报', tabManual: '🧪 手动抓取', tabMarks: '📌 Mark 收藏',
     loginBanner: '💡 登录 Google 账号即可收藏文章、管理个人书签',
     loginBtn: '登录', logout: '退出', signIn: '登录',
     loading: '加载中...', noData: '暂无数据', loadMore: '加载更多', loadingMore: '加载中...',
@@ -310,7 +311,7 @@ const I18N = {
   en: {
     title: '🎯 DeepClick Radar',
     subtitle: '',
-    tab4h: '8H Briefs', tabDaily: 'Daily', tabWeekly: 'Weekly', tabMonthly: 'Monthly', tabMarks: '📌 Marks',
+    tab4h: '8H Briefs', tabDaily: 'Daily', tabWeekly: 'Weekly', tabMonthly: 'Monthly', tabManual: '🧪 Manual', tabMarks: '📌 Marks',
     loginBanner: '💡 Sign in with Google to bookmark articles and manage your reading list',
     loginBtn: 'Login', logout: 'Logout', signIn: 'Sign in',
     loading: 'Loading...', noData: 'No data', loadMore: 'Load More', loadingMore: 'Loading...',
@@ -370,7 +371,7 @@ const I18N = {
   }
 };
 
-let lang = localStorage.getItem('digest_lang') || 'en';
+let lang = localStorage.getItem('digest_lang') || 'zh';
 function t(key) { return I18N[lang]?.[key] ?? I18N.en[key] ?? key; }
 
 function setLang(l) {
@@ -389,6 +390,7 @@ function applyLang() {
   document.querySelector('[data-type="daily"]').textContent = t('tabDaily');
   document.querySelector('[data-type="weekly"]').textContent = t('tabWeekly');
   document.querySelector('[data-type="monthly"]').textContent = t('tabMonthly');
+  document.querySelector('[data-type="manual"]').textContent = t('tabManual');
   document.querySelector('[data-type="marks"]').textContent = t('tabMarks');
   const banner = document.getElementById('loginBanner');
   if (banner) banner.querySelector('span').textContent = t('loginBanner');
@@ -586,7 +588,7 @@ function groupDigests(digests) {
   for (const d of digests) {
     const dt = parseCreatedAt(d);
     let key;
-    if (currentType === '4h') {
+    if (currentType === '4h' || currentType === 'manual') {
       key = localDateStr(dt); // by local day
     } else if (currentType === 'daily') {
       key = getWeekKey(dt); // by week
@@ -602,7 +604,7 @@ function groupDigests(digests) {
 }
 
 function formatGroupLabel(type, key) {
-  if (type === '4h') {
+  if (type === '4h' || type === 'manual') {
     const d = new Date(key + 'T00:00:00+08:00');
     const wd = WEEKDAYS()[d.getDay()];
     const today = new Date(); today.setHours(0,0,0,0);
@@ -655,6 +657,18 @@ function extractExcerpt(content) {
 
 let loadedDigests = [];
 
+function parseMeta(meta) {
+  if (!meta) return {};
+  if (typeof meta === 'object') return meta;
+  try { return JSON.parse(meta); } catch { return {}; }
+}
+function isManualDigest(d) {
+  const m = parseMeta(d.metadata);
+  if (m.manual === true || m.trigger === 'manual' || m.source === 'manual' || m.rerun === true) return true;
+  const c = (d.content || '');
+  return /模板重跑|手动抓取|主题抓取/.test(c);
+}
+
 function goHome() {
   currentType = '4h';
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -679,11 +693,21 @@ async function renderList(append = false) {
   }
 
   try {
-    const resp = await fetch(`${API}/digests?type=${currentType}&limit=${PAGE_SIZE}&offset=${currentOffset}`);
-    const digests = await resp.json();
-    if (digests.length < PAGE_SIZE) allLoaded = true;
-    loadedDigests = loadedDigests.concat(digests);
-    currentOffset += digests.length;
+    let digests = [];
+    if (currentType === 'manual') {
+      const resp = await fetch(`${API}/digests?type=4h&limit=200&offset=0`);
+      const all = await resp.json();
+      digests = all.filter(isManualDigest);
+      allLoaded = true;
+      loadedDigests = digests;
+      currentOffset = digests.length;
+    } else {
+      const resp = await fetch(`${API}/digests?type=${currentType}&limit=${PAGE_SIZE}&offset=${currentOffset}`);
+      digests = await resp.json();
+      if (digests.length < PAGE_SIZE) allLoaded = true;
+      loadedDigests = loadedDigests.concat(digests);
+      currentOffset += digests.length;
+    }
 
     if (!loadedDigests.length) { list.innerHTML = `<div class="empty">${t('noData')}</div>`; return; }
 
@@ -697,7 +721,7 @@ async function renderList(append = false) {
         const dt = d._dt;
         const time = dt.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
         let title, badge;
-        if (currentType === '4h') {
+        if (currentType === '4h' || currentType === 'manual') {
           title = `${time} SGT`; badge = `<span class="time-badge">${time}</span>`;
         } else if (currentType === 'daily') {
           const dateStr = dt.toISOString().slice(0, 10);
@@ -720,7 +744,7 @@ async function renderList(append = false) {
     }
     list.innerHTML = html;
     list.querySelectorAll('.digest-card').forEach(card => {
-      card.onclick = () => loadDigest(card.dataset.id);
+      card.onclick = () => loadDigest(card.dataset.id, true);
     });
   } catch (e) {
     if (!append) list.innerHTML = `<div class="empty">${t('loadFail')}: ${e.message}</div>`;
@@ -735,10 +759,11 @@ async function loadMore() {
   await renderList(true);
 }
 
-async function loadDigest(id) {
+async function loadDigest(id, updateHash = false) {
   const list = document.getElementById('list');
   const viewer = document.getElementById('viewer');
   list.innerHTML = '';
+  if (updateHash) location.hash = `${currentType}/${id}`;
   try {
     const resp = await fetch(`${API}/digests/${id}`);
     const d = await resp.json();
@@ -1565,9 +1590,17 @@ document.querySelectorAll('.tab').forEach(tab => {
   };
 });
 
+let initialDigestId = null;
 if (location.hash) {
   const h = location.hash.substring(1);
-  if (['4h','daily','weekly','monthly','marks','sources'].includes(h)) {
+  const m = h.match(/^(4h|daily|weekly|monthly|manual)\/(\d+)$/);
+  if (m) {
+    currentType = m[1];
+    initialDigestId = m[2];
+    document.querySelector('.tab.active')?.classList.remove('active');
+    const t = document.querySelector('.tab[data-type="'+currentType+'"]');
+    if (t) t.classList.add('active');
+  } else if (['4h','daily','weekly','monthly','manual','marks','sources'].includes(h)) {
     currentType = h;
     document.querySelector('.tab.active')?.classList.remove('active');
     const t = document.querySelector('.tab[data-type="'+h+'"]');
@@ -1745,7 +1778,11 @@ checkAuth().then(() => {
   } else if (currentPackSlug) {
     renderPackDetailPage(currentPackSlug);
   } else {
-    renderList();
+    if (initialDigestId) {
+      renderList().then(() => loadDigest(initialDigestId, false));
+    } else {
+      renderList();
+    }
   }
 });
 
