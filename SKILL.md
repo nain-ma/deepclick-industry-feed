@@ -139,3 +139,10 @@ python3 scripts/export_blog_pool.py --date 2026-03-02 --type all --out outputs/b
 
 典型场景：
 - 需要生成热点 Blog 时，先导出当天/近几天结构化素材，再进入选题与成稿流程。
+
+## 手动抓取跨会话规则（强制）
+
+- 任何来自聊天对话的“抓取/检索/专题拉取”请求，统一按**手动抓取**处理。
+- 手动抓取结果必须写入 `manual` panel（与定时 8H/日报看板隔离）。
+- 完成后必须返回可访问深链：`https://radar.qiliangjia.one/#manual/<digest_id>`。
+- 不允许将手动抓取结果混入定时看板。
