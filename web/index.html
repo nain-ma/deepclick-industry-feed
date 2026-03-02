@@ -704,6 +704,9 @@ async function renderList(append = false) {
     } else {
       const resp = await fetch(`${API}/digests?type=${currentType}&limit=${PAGE_SIZE}&offset=${currentOffset}`);
       digests = await resp.json();
+      if (currentType === '4h') {
+        digests = digests.filter(d => !isManualDigest(d));
+      }
       if (digests.length < PAGE_SIZE) allLoaded = true;
       loadedDigests = loadedDigests.concat(digests);
       currentOffset += digests.length;
