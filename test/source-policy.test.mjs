@@ -5,6 +5,9 @@ import { classifySource, evaluateRawItem, rankRawItems } from '../src/source-pol
 
 test('classifySource marks core and excluded sources correctly', () => {
   assert.equal(classifySource({ name: 'r/FacebookAds', type: 'reddit' }).tier, 'core');
+  assert.equal(classifySource({ name: 'Meta Ads Manager Outages', type: 'rss' }).tier, 'core');
+  assert.equal(classifySource({ name: 'TikTok For Business Blog', type: 'website' }).tier, 'watchlist');
+  assert.equal(classifySource({ name: 'r/TikTokAds', type: 'reddit' }).tier, 'watchlist');
   assert.equal(classifySource({ name: 'TechCrunch', type: 'rss' }).tier, 'watchlist');
   assert.equal(classifySource({ name: 'r/Entrepreneur', type: 'reddit' }).tier, 'excluded');
 });
@@ -38,6 +41,22 @@ test('evaluateRawItem keeps core ad-tech signals', () => {
 
   assert.equal(result.accepted, true);
   assert.ok(result.score >= 55);
+});
+
+test('evaluateRawItem keeps outage signals from official ad status feeds', () => {
+  const result = evaluateRawItem({
+    name: 'Meta Ads Manager Outages',
+    source_name: 'Meta Ads Manager Outages',
+    type: 'rss',
+    title: '[High disruptions]: Ads Delivery',
+    content: 'We are aware of an issue that may be impacting ad delivery.',
+    url: 'https://metastatus.com/ads-manager',
+    fetched_at: '2026-03-04 00:00:00',
+    metadata: '{}',
+  }, { mode: 'scheduled' });
+
+  assert.equal(result.accepted, true);
+  assert.ok(result.score >= 70);
 });
 
 test('rankRawItems removes duplicate titles and sorts by score', () => {

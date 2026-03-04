@@ -29,6 +29,33 @@ function normalizeText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+function normalizePathname(value) {
+  return String(value || '').replace(/\/+$/, '') || '/';
+}
+
+function looksArticleUrl(baseUrl, targetUrl) {
+  const base = new URL(baseUrl);
+  const target = new URL(targetUrl);
+  if (target.origin !== base.origin) return false;
+
+  const basePath = normalizePathname(base.pathname);
+  const targetPath = normalizePathname(target.pathname);
+  if (targetPath === basePath) return false;
+  if (/\/(tag|tags|category|categories|author|authors|topics|search|page|feed)\b/i.test(targetPath)) return false;
+
+  if (targetPath.startsWith(basePath + '/')) {
+    const remainder = targetPath.slice(basePath.length + 1);
+    return remainder.length >= 5;
+  }
+
+  if (!/(blog|insights|news|updates?|announcements?|release|product)/i.test(targetPath)) {
+    return false;
+  }
+
+  const slug = targetPath.split('/').filter(Boolean).pop() || '';
+  return slug.length >= 5;
+}
+
 function buildListingItems($, baseUrl) {
   const seen = new Set();
   const items = [];
@@ -45,9 +72,7 @@ function buildListingItems($, baseUrl) {
     if (!href || !title || title.length < 12) return;
 
     const absUrl = new URL(href, baseUrl).toString();
-    const u = new URL(absUrl);
-    if (u.origin !== new URL(baseUrl).origin) return;
-    if (/\/(tag|tags|category|categories|author|authors|topics|search|page)\//i.test(u.pathname)) return;
+    if (!looksArticleUrl(baseUrl, absUrl)) return;
     if (seen.has(absUrl)) return;
     seen.add(absUrl);
 
@@ -68,6 +93,73 @@ function buildListingItems($, baseUrl) {
       published_at: safeDate(rawDate),
       dedup_key: createHash('sha256').update(absUrl).digest('hex'),
       metadata: JSON.stringify({ type: 'listing_extract' }),
+    });
+  });
+
+  return items;
+}
+
+function buildAnchorPatternItems($, baseUrl) {
+  const origin = new URL(baseUrl).origin;
+  const seen = new Set();
+  const items = [];
+
+  $('a[href]').each((_, node) => {
+    if (items.length >= 20) return false;
+
+    const el = $(node);
+    const href = normalizeText(el.attr('href'));
+    if (!href || href.startsWith('#') || href.startsWith('mailto:')) return;
+
+    let absUrl;
+    try {
+      absUrl = new URL(href, baseUrl).toString();
+    } catch {
+      return;
+    }
+
+    const target = new URL(absUrl);
+    if (target.origin !== origin) return;
+    if (!looksArticleUrl(baseUrl, absUrl)) return;
+    if (seen.has(absUrl)) return;
+
+    const card = el.closest(
+      [
+        'article',
+        '[articleid]',
+        '[class*="card"]',
+        '[class*="item"]',
+        '[class*="result"]',
+        '[class*="story"]',
+        '[class*="post"]',
+      ].join(', ')
+    );
+
+    const container = card.length ? card : el.parent();
+    const title = normalizeText(
+      el.attr('title') ||
+      el.text() ||
+      container.find('h1, h2, h3, h4, h5').first().text()
+    );
+    if (!title || title.length < 12) return;
+
+    const rawDate =
+      container.find('time[datetime]').first().attr('datetime') ||
+      container.find('time').first().text();
+    const content = normalizeText(
+      container.find('p').first().text() ||
+      container.text()
+    ).slice(0, 500);
+
+    seen.add(absUrl);
+    items.push({
+      title,
+      url: absUrl,
+      author: '',
+      content,
+      published_at: safeDate(rawDate),
+      dedup_key: createHash('sha256').update(absUrl).digest('hex'),
+      metadata: JSON.stringify({ type: 'anchor_extract' }),
     });
   });
 
@@ -158,7 +250,9 @@ async function fetchSitemapItems(baseUrl, httpFetch) {
  */
 export async function fetchWebsite(source, httpFetch) {
   const config = JSON.parse(source.config);
-  const { body } = await httpFetch(config.url);
+  const { body } = await httpFetch(config.url, 20000, 3, {
+    maxBodyBytes: 1_500_000,
+  });
   const $ = cheerio.load(body);
 
   // RSS autodiscovery: look for <link> tags pointing to feeds
@@ -176,6 +270,11 @@ export async function fetchWebsite(source, httpFetch) {
       { ...source, config: JSON.stringify({ url: absoluteUrl }) },
       httpFetch
     );
+  }
+
+  const anchorItems = buildAnchorPatternItems($, config.url);
+  if (anchorItems.length > 0) {
+    return anchorItems;
   }
 
   const listingItems = buildListingItems($, config.url);
