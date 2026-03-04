@@ -1,6 +1,16 @@
 // src/fetchers/reddit.mjs -- Reddit subreddit JSON API fetcher
 // Retrieves posts from a subreddit via public JSON API and normalizes them.
+// Uses old.reddit.com which is more reliable for JSON API access.
 import { createHash } from 'crypto';
+
+// ── Config ──
+
+// Reddit's public JSON API can be slow, especially through proxies.
+// 45 s accommodates slow responses without hitting the collector's retry budget.
+const REDDIT_TIMEOUT_MS = 45_000;
+
+// Use a real browser UA to avoid Reddit bot detection / silent blocks.
+const REDDIT_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.7632.117 Safari/537.36';
 
 // ── Helpers ──
 
@@ -38,11 +48,16 @@ export async function fetchReddit(source, httpFetch) {
   const sort = config.sort || 'hot';
   const limit = config.limit || 25;
 
-  const url = `https://www.reddit.com/r/${subreddit}/${sort}.json?limit=${limit}`;
+  // old.reddit.com is lighter-weight and more reliable for JSON API access
+  // than www.reddit.com (which often serves the SPA shell or blocks bots).
+  const url = `https://old.reddit.com/r/${subreddit}/${sort}.json?limit=${limit}&raw_json=1`;
   // Disable browser header generation — Reddit's JSON API returns HTML for browser-like requests
-  const { body } = await httpFetch(url, 20000, 3, {
+  const { body } = await httpFetch(url, REDDIT_TIMEOUT_MS, 3, {
     useHeaderGenerator: false,
-    headers: { 'User-Agent': 'clawfeed/1.0', 'Accept': 'application/json' },
+    headers: {
+      'User-Agent': REDDIT_USER_AGENT,
+      'Accept': 'application/json',
+    },
   });
   const data = JSON.parse(body);
 
