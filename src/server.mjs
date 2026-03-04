@@ -175,8 +175,20 @@ function _digestTitle(d, ca) {
   const dt = new Date(ca.includes('+') ? ca : ca.replace(' ', 'T') + '+08:00');
   const timeStr = dt.toLocaleString('en-SG', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
   const icons = { '4h': '☀️', daily: '📰', weekly: '📅', monthly: '📊' };
-  const labels = { '4h': 'AI 简报', daily: 'AI 日报', weekly: 'AI 周报', monthly: 'AI 月报' };
+  const labels = { '4h': 'AI 8H 简报', daily: 'AI 日报', weekly: 'AI 周报', monthly: 'AI 月报' };
   return `${icons[d.type] || '📝'} ${labels[d.type] || 'ClawFeed'} | ${timeStr} SGT`;
+}
+
+function normalizeDigestType(type, fallback) {
+  if (!type) return fallback;
+  const t = String(type).toLowerCase();
+  if (t === '8h' || t === '4h') return '4h';
+  if (t === 'daily' || t === 'weekly' || t === 'monthly') return t;
+  return fallback;
+}
+
+function externalDigestType(type) {
+  return type === '4h' ? '8h' : type;
 }
 
 // ── Source URL resolver ──
@@ -288,7 +300,8 @@ const server = createServer(async (req, res) => {
     const user = getUserBySlug(db, slug);
     if (!user) return json(res, { error: 'user not found' }, 404);
 
-    const type = params.get('type') || '4h';
+    const requestedType = params.get('type') || '8h';
+    const type = normalizeDigestType(requestedType, '4h');
     const limit = Math.min(parseInt(params.get('limit') || '10'), 50);
     const since = params.get('since') || undefined;
     const digests = listDigestsByUser(db, user.id, { type, limit, since });
@@ -339,7 +352,16 @@ const server = createServer(async (req, res) => {
     // Simple API
     return json(res, {
       user: { name: user.name, slug: user.slug },
-      digests: digests.map(d => ({ id: d.id, type: d.type, content: d.content, created_at: d.created_at })),
+      type_requested: requestedType,
+      type_internal: type,
+      digests: digests.map(d => ({
+        id: d.id,
+        type: d.type,
+        type_alias: externalDigestType(d.type),
+        window_label: externalDigestType(d.type),
+        content: d.content,
+        created_at: d.created_at
+      })),
       total
     });
   }
@@ -458,10 +480,16 @@ const server = createServer(async (req, res) => {
     // ── Digest endpoints (public) ──
 
     if (req.method === 'GET' && path === '/api/digests') {
-      const type = params.get('type') || undefined;
+      const requestedType = params.get('type') || undefined;
+      const type = normalizeDigestType(requestedType, undefined);
       const limit = parseInt(params.get('limit') || '20');
       const offset = parseInt(params.get('offset') || '0');
-      return json(res, listDigests(db, { type, limit, offset }));
+      const rows = listDigests(db, { type, limit, offset });
+      return json(res, rows.map(d => ({
+        ...d,
+        type_alias: externalDigestType(d.type),
+        window_label: externalDigestType(d.type)
+      })));
     }
 
     const digestMatch = path.match(/^\/api\/digests\/(\d+)$/);
@@ -476,6 +504,7 @@ const server = createServer(async (req, res) => {
       const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
       if (!API_KEY || bearerKey !== API_KEY) return json(res, { error: 'invalid api key' }, 401);
       const body = await parseBody(req);
+      body.type = normalizeDigestType(body.type, '4h');
       const result = createDigest(db, body);
       return json(res, result, 201);
     }

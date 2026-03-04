@@ -41,9 +41,58 @@ export async function assertSafeFetchUrl(rawUrl) {
 }
 
 /**
+ * Custom error for HTTP rate-limiting (429) responses.
+ * Carries the Retry-After value so callers can back off appropriately.
+ */
+export class HttpRateLimitError extends Error {
+  /**
+   * @param {string} url - The requested URL
+   * @param {string|undefined} retryAfter - Raw Retry-After header value (seconds or HTTP-date)
+   */
+  constructor(url, retryAfter) {
+    const msg = retryAfter
+      ? `http 429 (Retry-After: ${retryAfter})`
+      : 'http 429';
+    super(msg);
+    this.name = 'HttpRateLimitError';
+    this.statusCode = 429;
+    this.retryAfter = retryAfter;
+    this.url = url;
+  }
+
+  /** Parse the Retry-After header into milliseconds. Returns null if unparseable. */
+  get retryAfterMs() {
+    if (!this.retryAfter) return null;
+    // Retry-After can be seconds (integer) or an HTTP-date
+    const asNum = Number(this.retryAfter);
+    if (Number.isFinite(asNum) && asNum >= 0) return asNum * 1000;
+    try {
+      const date = new Date(this.retryAfter);
+      if (!isNaN(date.getTime())) return Math.max(0, date.getTime() - Date.now());
+    } catch { /* ignore */ }
+    return null;
+  }
+}
+
+/**
+ * Custom error for non-OK HTTP responses (non-429).
+ */
+export class HttpStatusError extends Error {
+  constructor(url, statusCode) {
+    super(`http ${statusCode}`);
+    this.name = 'HttpStatusError';
+    this.statusCode = statusCode;
+    this.url = url;
+  }
+}
+
+/**
  * Fetch a URL with SSRF protection, timeout, redirect following, proxy support, and size limit.
  * Transport: got-scraping (browser-like headers, HTTP/2, native proxy).
  * Set HTTPS_PROXY env var to route through an HTTP proxy (e.g. http://127.0.0.1:7890).
+ *
+ * Throws HttpRateLimitError on 429 responses (with Retry-After info).
+ * Throws HttpStatusError on other non-2xx responses.
  *
  * @param {string} url
  * @param {number} timeout - Request timeout in ms (default 15000)
@@ -67,6 +116,16 @@ export async function httpFetch(url, timeout = 15000, redirectsLeft = 3, options
       ...options.headers,
     },
   });
+
+  // Surface rate-limit errors with Retry-After metadata
+  if (response.statusCode === 429) {
+    throw new HttpRateLimitError(url, response.headers['retry-after']);
+  }
+
+  // Surface other HTTP errors
+  if (response.statusCode >= 400) {
+    throw new HttpStatusError(url, response.statusCode);
+  }
 
   let body = response.body;
   if (body.length > MAX_BODY_BYTES) {
