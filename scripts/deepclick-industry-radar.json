@@ -1,5 +1,20 @@
 [
   {
+    "name": "Meta Ads Manager Outages",
+    "type": "rss",
+    "config": { "url": "https://metastatus.com/outage-events-feed-ads-manager.rss" }
+  },
+  {
+    "name": "Meta Marketing API Outages",
+    "type": "rss",
+    "config": { "url": "https://metastatus.com/outage-events-feed-marketing-api.rss" }
+  },
+  {
+    "name": "Meta Business Suite Outages",
+    "type": "rss",
+    "config": { "url": "https://metastatus.com/outage-events-feed-fbs.rss" }
+  },
+  {
     "name": "Meta Newsroom",
     "type": "rss",
     "config": { "url": "https://about.fb.com/news/feed/" }
@@ -110,8 +125,18 @@
     "config": { "url": "https://blog.google/products/ads-commerce/rss/" }
   },
   {
+    "name": "TikTok For Business Blog",
+    "type": "website",
+    "config": { "url": "https://ads.tiktok.com/business/en-US/blog" }
+  },
+  {
     "name": "Hacker News",
     "type": "hackernews",
     "config": { "filter": "top", "min_score": 100 }
+  },
+  {
+    "name": "r/TikTokAds",
+    "type": "reddit",
+    "config": { "subreddit": "TikTokAds", "sort": "hot", "limit": 20 }
   }
 ]

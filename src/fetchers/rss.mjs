@@ -19,8 +19,11 @@ function safeDate(val) {
   }
 }
 
-function dedupKey(url, title) {
-  const input = url || title || String(Date.now());
+function dedupKey(url, title, published, id) {
+  const normalizedParts = [id, url, title, published]
+    .map((part) => cleanText(part))
+    .filter(Boolean);
+  const input = normalizedParts.join(' | ') || String(Date.now());
   return createHash('sha256').update(input).digest('hex');
 }
 
@@ -49,9 +52,13 @@ function parseXmlFallback(body) {
       el.find('updated').first().text() ||
       el.find('dc\\:date').first().text()
     );
+    const id = cleanText(
+      el.find('guid').first().text() ||
+      el.find('id').first().text()
+    );
 
     if (!title && !link) return;
-    entries.push({ title, link, description, published });
+    entries.push({ title, link, description, published, id });
   });
   return { entries };
 }
@@ -93,7 +100,7 @@ export async function fetchRss(source, httpFetch) {
     author: '',
     content: entry.description || '',
     published_at: safeDate(entry.published),
-    dedup_key: dedupKey(entry.link || '', entry.title || ''),
+    dedup_key: dedupKey(entry.link || '', entry.title || '', entry.published || '', entry.id || ''),
     metadata: '{}',
   }));
 }
