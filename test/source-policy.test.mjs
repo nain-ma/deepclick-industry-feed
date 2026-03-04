@@ -59,6 +59,21 @@ test('evaluateRawItem keeps outage signals from official ad status feeds', () =>
   assert.ok(result.score >= 70);
 });
 
+test('evaluateRawItem rejects low-signal emotional community titles', () => {
+  const result = evaluateRawItem({
+    name: 'r/FacebookAds',
+    source_name: 'r/FacebookAds',
+    type: 'reddit',
+    title: 'FUCK META',
+    content: 'This company is a joke.',
+    url: 'https://example.com/fuck-meta',
+    fetched_at: '2026-03-04 00:00:00',
+    metadata: '{"score":22,"num_comments":18}',
+  }, { mode: 'scheduled' });
+
+  assert.equal(result.accepted, false);
+});
+
 test('rankRawItems removes duplicate titles and sorts by score', () => {
   const ranked = rankRawItems([
     {
@@ -85,4 +100,33 @@ test('rankRawItems removes duplicate titles and sorts by score', () => {
 
   assert.equal(ranked.length, 1);
   assert.equal(ranked[0].title, 'Meta attribution change hurts CPA');
+});
+
+test('rankRawItems clusters outage chatter and keeps the strongest signal', () => {
+  const ranked = rankRawItems([
+    {
+      name: 'r/FacebookAds',
+      source_name: 'r/FacebookAds',
+      type: 'reddit',
+      title: 'Meta Ads Status - High Disruption',
+      content: 'Ads Manager is down and reporting is broken.',
+      url: 'https://reddit.example.com/outage-1',
+      fetched_at: '2026-03-04 00:10:00',
+      metadata: '{"score":10,"num_comments":5}',
+    },
+    {
+      name: 'Meta Ads Manager Outages',
+      source_name: 'Meta Ads Manager Outages',
+      type: 'rss',
+      title: '[High disruptions]: Ads Reporting',
+      content: 'We are aware that some advertisers may be experiencing issues viewing reporting for their ads.',
+      url: 'https://metastatus.com/ads-manager',
+      fetched_at: '2026-03-04 00:11:00',
+      published_at: '2026-03-04T00:00:29.000Z',
+      metadata: '{}',
+    },
+  ], { mode: 'scheduled' });
+
+  assert.equal(ranked.length, 1);
+  assert.equal(ranked[0].source_name, 'Meta Ads Manager Outages');
 });

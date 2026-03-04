@@ -135,6 +135,41 @@ const EXCLUDE_PATTERNS = [
   /\bseo\b/i,
 ];
 
+const LOW_SIGNAL_TITLE_PATTERNS = [
+  /^\s*f+u+c*k\b/i,
+  /^\s*waiting[.!…\s]*$/i,
+  /^\s*need help\b/i,
+  /\bplease help\b/i,
+  /^\s*help\b/i,
+  /^\s*how do i start\b/i,
+  /\bwhat are the cost\b/i,
+  /\bworth it\??$/i,
+  /\bfeeling stuck\b/i,
+  /\bfor sale\b/i,
+  /\bfor rent\b/i,
+  /\bavailable dm\b/i,
+  /\bdm for more\b/i,
+  /\baccount.*for sale\b/i,
+  /\bagency accounts? for rent\b/i,
+];
+
+const LOW_SIGNAL_CONTENT_PATTERNS = [
+  /\bdm for more information\b/i,
+  /\baccount for sale\b/i,
+  /\bagency accounts? for rent\b/i,
+  /\bi just wanna start\b/i,
+];
+
+const OUTAGE_PATTERNS = [
+  /\boutage\b/i,
+  /\bdown\b/i,
+  /\bdisruption(?:s)?\b/i,
+  /\bsite issue\b/i,
+  /\bnot working\b/i,
+  /\bbugged?\b/i,
+  /\bbroken\b/i,
+];
+
 function normalizedName(source) {
   return String(source?.name || '').trim().toLowerCase();
 }
@@ -164,6 +199,52 @@ function normalizeTitle(title) {
     .replace(/\b(via|community|discussion|update|news)\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function hasPattern(patterns, text) {
+  return patterns.some((pattern) => pattern.test(text));
+}
+
+function platformKey(text) {
+  if (/\bmeta\b|\bfacebook\b|\binstagram\b/i.test(text)) return 'meta';
+  if (/\btiktok\b/i.test(text)) return 'tiktok';
+  if (/\bgoogle ads\b|\bgoogle\b/i.test(text)) return 'google';
+  if (/\bkwai\b|\bkuaishou\b/i.test(text)) return 'kwai';
+  if (/\bthe trade desk\b|\bttd\b/i.test(text)) return 'ttd';
+  return 'generic';
+}
+
+function issueKey(text) {
+  if (/\bads manager\b|\bmanager\b/i.test(text)) return 'manager';
+  if (/\bdelivery\b/i.test(text)) return 'delivery';
+  if (/\breporting\b|\breport\b/i.test(text)) return 'reporting';
+  if (/\blogin\b|\bverify\b|\bverification\b/i.test(text)) return 'login';
+  if (/\battribution\b/i.test(text)) return 'attribution';
+  if (/\bbudget\b|\bspend\b/i.test(text)) return 'budget';
+  if (/\bpolicy\b|\bstrike\b|\bsuspension\b|\brejected\b|\bdisapproved?\b/i.test(text)) return 'policy';
+  return 'general';
+}
+
+function buildClusterKey(item, evaluation) {
+  const normalized = evaluation.normalizedTitle || normalizeTitle(item.title);
+  const text = textBlob(item);
+
+  if (hasPattern(OUTAGE_PATTERNS, text)) {
+    return `incident:${platformKey(text)}:${issueKey(text)}`;
+  }
+
+  if (/\battribution\b/i.test(text)) {
+    return `attribution:${platformKey(text)}:${issueKey(text)}`;
+  }
+
+  return normalized;
+}
+
+function officialSignalBonus(item) {
+  const sourceName = normalizedName(item);
+  if (/\boutages?\b|\bstatus\b/.test(sourceName)) return 18;
+  if (/\bnewsroom\b|\bdevelopers?\b|\bblog\b/.test(sourceName) && item.type !== 'reddit') return 8;
+  return 0;
 }
 
 function engagementScore(item) {
@@ -211,17 +292,23 @@ export function classifySource(source) {
 export function evaluateRawItem(item, options = {}) {
   const sourcePolicy = classifySource(item);
   const text = textBlob(item);
+  const title = String(item.title || '');
   const strongMatches = countMatches(STRONG_INCLUDE_PATTERNS, text);
   const weakMatches = countMatches(WEAK_INCLUDE_PATTERNS, text);
   const excludeMatches = countMatches(EXCLUDE_PATTERNS, text);
+  const lowSignalTitle = hasPattern(LOW_SIGNAL_TITLE_PATTERNS, title);
+  const lowSignalContent = hasPattern(LOW_SIGNAL_CONTENT_PATTERNS, text);
+  const communityNoisePenalty = (lowSignalTitle ? 40 : 0) + (lowSignalContent ? 30 : 0);
   const quantitativeSignal = /\b\d+%|\b(cpa|cvr|roi|roas|ctr)\b/i.test(text) ? 8 : 0;
   const score = sourcePolicy.weight +
     Math.min(30, strongMatches * 12) +
     Math.min(12, weakMatches * 4) +
     quantitativeSignal +
+    officialSignalBonus(item) +
     engagementScore(item) +
     freshnessScore(item) -
-    Math.min(45, excludeMatches * 15);
+    Math.min(45, excludeMatches * 15) -
+    communityNoisePenalty;
 
   const mode = options.mode || 'scheduled';
 
@@ -231,6 +318,12 @@ export function evaluateRawItem(item, options = {}) {
     }
     if (excludeMatches > 0 && strongMatches === 0) {
       return { accepted: false, score, sourcePolicy, rejectReason: 'excluded-topic' };
+    }
+    if ((sourcePolicy.tier === 'core' || sourcePolicy.tier === 'watchlist') && lowSignalTitle && strongMatches < 3) {
+      return { accepted: false, score, sourcePolicy, rejectReason: 'low-signal-title' };
+    }
+    if (sourcePolicy.tier !== 'core' && lowSignalContent && quantitativeSignal === 0) {
+      return { accepted: false, score, sourcePolicy, rejectReason: 'low-signal-content' };
     }
     if (sourcePolicy.tier === 'core' && strongMatches === 0 && weakMatches === 0) {
       return { accepted: false, score, sourcePolicy, rejectReason: 'core-without-signal' };
@@ -251,23 +344,20 @@ export function evaluateRawItem(item, options = {}) {
     strongMatches,
     weakMatches,
     excludeMatches,
+    lowSignalTitle,
+    lowSignalContent,
   };
 }
 
 export function rankRawItems(items, options = {}) {
-  const seenTitles = new Set();
-  const ranked = [];
+  const accepted = [];
 
   for (const item of items) {
     const evaluation = evaluateRawItem(item, options);
     if (!evaluation.accepted) continue;
-
-    const key = evaluation.normalizedTitle || normalizeTitle(item.title);
-    if (key && seenTitles.has(key)) continue;
-    if (key) seenTitles.add(key);
-
-    ranked.push({
+    accepted.push({
       ...item,
+      cluster_key: buildClusterKey(item, evaluation),
       relevance_score: evaluation.score,
       source_tier: evaluation.sourcePolicy.tier,
       source_weight: evaluation.sourcePolicy.weight,
@@ -276,14 +366,25 @@ export function rankRawItems(items, options = {}) {
         strong_matches: evaluation.strongMatches,
         weak_matches: evaluation.weakMatches,
         exclude_matches: evaluation.excludeMatches,
+        low_signal_title: evaluation.lowSignalTitle,
+        low_signal_content: evaluation.lowSignalContent,
       }),
     });
   }
 
-  ranked.sort((a, b) => {
+  accepted.sort((a, b) => {
     if (b.relevance_score !== a.relevance_score) return b.relevance_score - a.relevance_score;
     return String(b.published_at || b.fetched_at).localeCompare(String(a.published_at || a.fetched_at));
   });
+
+  const seenTitles = new Set();
+  const ranked = [];
+  for (const item of accepted) {
+    const key = item.cluster_key || normalizeTitle(item.title);
+    if (key && seenTitles.has(key)) continue;
+    if (key) seenTitles.add(key);
+    ranked.push(item);
+  }
 
   return ranked;
 }
