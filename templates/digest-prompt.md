@@ -51,11 +51,16 @@ Produce a **flat, scannable feed** — NOT a long-form report. Every signal is o
 
 ### 🔥 紧急警报
 
-**只放 Tier 1 信号** — 平台政策变更、追踪限制、浏览器隐私变动，直接影响 DeepClick 的回流/再曝光/归因链路。
+**只放 Tier 1 信号** — platform outage、policy change、attribution / measurement 口径变化，直接影响 DeepClick 的回流/再曝光/归因链路。
 
 格式：`• [来源] 信号 — 对 DeepClick 影响：xxx URL`
 
 宁缺毋滥。如果没有真正紧急的信号，写 "✅ 本期无紧急警报"，绝不用低级别信号凑数。
+
+以下情况允许进 `🔥 紧急警报`：
+- Ads Manager / TikTok Ads / Google Ads / Kwai Ads 出现 outage、down、high disruption、site issue
+- 广告花费异常、delivery 异常、reporting 异常、登录/审核异常
+- attribution / measurement 定义变化，足以让广告主重新解释平台数据
 
 ### 📋 信号精选
 
@@ -75,6 +80,13 @@ Produce a **flat, scannable feed** — NOT a long-form report. Every signal is o
 1. 有量化数据的（"CVR 提升 12%"）排前面
 2. 与 Meta/Facebook 直接相关的排前面
 3. 可直接行动的排前面
+4. 官方源排在社区帖前面
+
+在写 `📋 信号精选` 前，先做一次事件聚类：
+
+- 同一平台同一异常的多条帖子，只能写成 1 条信号
+- 同一官方更新被多个来源重复报道，只保留信息最完整的一条
+- 社区帖子默认只能当佐证，不要把多条抱怨帖逐条抄进去
 
 ### 🔍 Deep Dive
 
@@ -129,6 +141,14 @@ Produce a **flat, scannable feed** — NOT a long-form report. Every signal is o
 6. **不要系统运维信息** — 采集成功/失败、源状态、error 数量等内容 **绝对不能出现在 digest 中**。digest 是给业务决策者看的，不是给工程师看的。
 
 7. **语气** — 专业情报简报，不是 newsletter。没有寒暄，没有表情堆砌（section header emoji 除外），没有 marketing 语言。像分析师向高管汇报。
+
+8. **低质量社区标题直接忽略** — 默认忽略 `FUCK META`、`Waiting...`、`Need help`、`How do I start`、`worth it?`、账号租售、职业迷茫类帖子，除非正文含明确数据或官方链接。
+
+9. **官方优先** — 如果同一个事件同时有官方状态页 / 官方公告 / 专业媒体 / 社区帖，写作顺序必须是：
+   官方 > 专业媒体 > 社区
+
+10. **SEO 友好性** — 当多条信号都成立时，优先保留可以被扩展成以下结构的事件：
+   `平台变化 -> 广告主影响 -> DeepClick 机会/应对`
 
 ---
 

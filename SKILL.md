@@ -1,6 +1,6 @@
 ---
 name: deepclick-radar
-description: "AI-powered news digest tool with DeepClick industry intelligence extensions. Collects from RSS, websites, Reddit, X proxy, and custom APIs."
+description: "AI-powered industry radar skill for DeepClick-style paid traffic intelligence. Use this whenever the user wants ad platform hot news, outages, policy changes, attribution updates, community hot discussions, or SEO topic mining around Meta Ads, TikTok Ads, Google Ads, Kwai/Kuaishou ads, post-click conversion, attribution, or paid media operations. Collects from RSS, websites, Reddit, X proxy, and custom APIs."
 metadata: { "requires": { "bins": ["node"], "env": [] } }
 user-invokable: false
 disable-model-invocation: false
@@ -80,6 +80,7 @@ Serve `web/index.html` via your reverse proxy or any static file server.
 
 - `templates/curation-rules.md` — Customize feed curation rules
 - `templates/digest-prompt.md` — Customize the AI summarization prompt
+- `references/selection-playbook.md` — Default event clustering and source trust playbook for high-quality digests
 
 ## Configuration
 
@@ -105,6 +106,52 @@ handle_path /digest/* {
 - 每条信号使用来源前缀：`@来源名 - 描述`（例如 `@TechCrunch - ...`、`@r/FacebookAds - ...`）。
 - 每条信号末尾单独一行：`原文链接：<url>`。
 - Feed 正文**不展示** `Content Pool (JSON)`。
+
+## 默认执行流程
+
+安装这个 skill 的 Agent 在生成任何 `4h / daily / weekly / monthly / manual` 报告时，默认按下列顺序执行，不要只看最新几条标题后直接写结论。
+
+1. 先从 `/api/raw-items/for-digest` 拉取一个够大的候选池。
+   建议：`4h/8h` 读 `40-80` 条，`daily` 读 `80-150` 条。
+2. 先做事件聚类，再做摘要。
+   同一个 outage、同一个 attribution update、同一个 policy 变化，不要把 Reddit 多条抱怨逐条写进 digest。
+3. 优先官方源，其次行业媒体，最后才是社区帖子。
+   官方状态页 / 官方产品更新 / 官方政策页 > Search Engine Land / AdExchanger > Reddit/X 社区讨论。
+4. 社区帖子默认当“佐证信号”，不是默认主角。
+   只有在出现以下任一情况时，社区帖子才可以升到主信号：
+   - 官方源还没发，但 2 条以上独立社区帖子在描述同类异常
+   - 帖子包含明确量化影响，如预算异常、CVR/CPA 明显变化、审批/归因口径变化
+   - 社区帖子本身指向官方公告、状态页或帮助文档
+5. 任何报告都要显式过滤低价值帖子。
+   包括：纯求助、入门问答、情绪发泄、账号买卖、职业吐槽、泛技巧贴。
+
+## 默认选材边界
+
+这个 skill 的“高质量”默认不是“抓最多”，而是“尽快发现能影响广告投放、归因解释、post-click 转化链路、客户决策的话题”。
+
+默认优先关注：
+- 平台 outage、delivery/reporting/login/审核异常
+- 归因、tracking、pixel、Conversions API、Privacy Sandbox、ATT 类变化
+- Meta / TikTok / Google / Kwai 官方产品更新，尤其是定向、预算、投放位、measurement
+- 广告主大面积讨论的异常波动，前提是能形成事件级聚类
+- 能直接转成 SEO blog 的“平台变化 -> 广告主影响 -> 应对策略”题目
+
+默认不把这些当成主输出：
+- 单人求助帖
+- 没有证据的怒骂帖
+- “how do I start / worth it / please help” 类入门问题
+- 账号租售、代理开户、spam
+- 泛营销或职业发展讨论
+
+## 手动生成简报
+
+当用户让 Agent “跑一版报告看看效果”时：
+
+1. 先拉候选池。
+2. 依据 `templates/curation-rules.md` 和 `references/selection-playbook.md` 做聚类与过滤。
+3. 再按 `templates/digest-prompt.md` 产出。
+4. 如果系统可写，优先写入 `/api/digests`，然后返回深链。
+5. 如果系统不可写，直接在对话里返回完整 digest，但仍然保持相同结构。
 
 ## 调试与模板迭代（给老板快速看样）
 

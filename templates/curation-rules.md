@@ -21,13 +21,15 @@
 
 ### Tier 1 — 紧急：平台与政策风险
 
-影响 DeepClick 运营存续的信号。一个政策变更可以让回流链路一夜失效。
+影响 DeepClick 运营存续的信号。一个 policy change 或 platform outage 可以让回流链路、归因解释或客户判断一夜失真。
 
 **什么算 Tier 1：**
 - Meta/Facebook 广告政策变更，限制再营销 pixel 或自定义着陆页
 - 浏览器隐私变更（ITP、Privacy Sandbox、cookie 淘汰）破坏追踪/归因
 - 重定向/链接限制影响回流链路
 - 账户审核/封禁潮影响客户投放
+- Meta / TikTok / Google / Kwai 广告平台 outage、delivery/reporting/login/budget 异常
+- attribution / measurement 口径变更，导致平台报表与真实点击后转化解释发生偏移
 
 **排序权重：**
 - 已执行 > 已公告有时间表 > 传闻/测试中
@@ -118,12 +120,72 @@ Tier 1 > Tier 2 > ... > Tier 5，但 **影响强度可以覆盖 tier 顺序**：
 
 1. **无 CPA/CVR/ROI 角度的通用营销技巧** — "提升社媒影响力的 10 个方法"
 2. **纯社交媒体八卦** — 平台高管争议、网红纠纷
-3. **非 Meta 平台独占内容** — TikTok/Snapchat/Pinterest 专属新闻（除非跨平台影响）
+3. **非核心广告平台独占内容** — 与 Meta / TikTok / Google / Kwai paid traffic 生态无关的专属新闻
 4. **无数据的纯观点** — 没有具体信号的 hot take 和预测
 5. **与广告无关的开发者工具** — 新 JS 框架、通用 SaaS、与广告/归因/转化无关的基础设施
 6. **历史回顾** — "数字广告发展史" 无可行动情报
 7. **招聘/职业内容** — 除非招聘模式本身是竞品情报信号
 8. **系统运维信息** — 采集状态、error 计数、源健康等工程指标
+
+---
+
+## 事件优先，不是帖子优先
+
+digest 的基本单位应该是“事件”而不是“帖子”。
+
+先做这一步，再决定写什么：
+
+1. 把同平台、同时间窗口、同症状的帖子聚成一簇
+2. 给每个事件簇选一条主证据
+3. 只把“事件结论”写进 digest
+
+典型例子：
+
+- 6 条 `Meta down / Ads Manager broken / reporting issue / budget overspend` 社区帖
+  正确处理：聚成 1 个 `Meta Ads Manager outage` 事件
+- 3 个来源在写同一个 `Meta attribution update`
+  正确处理：写 1 条主信号，其他来源只作为佐证
+
+---
+
+## 社区帖子硬过滤
+
+以下帖子默认排除，除非正文包含明确量化数据或官方链接：
+
+1. 情绪帖
+   例如：`FUCK META`、`Waiting...`
+2. 入门问答
+   例如：`How do I start Meta ads?`
+3. 泛求助
+   例如：`Need help`、`Please help`
+4. 职业/成长讨论
+   例如：`Feeling stuck in PPC`
+5. 买卖/租售/黑产边缘内容
+   例如：account for sale、agency account for rent
+
+社区帖只有在下面情况下才能升格：
+
+1. 同类异常有 2 条以上独立帖子互相印证
+2. 正文包含明确异常症状
+   例如：超额花费、无法保存草稿、登录验证失败、Pixel 停止触发
+3. 正文包含量化指标
+   例如：CPA/ROAS/CTR/CVR 明显变化
+4. 帖子指向官方公告、帮助页或状态页
+
+---
+
+## Source Trust Ladder
+
+默认信任顺序：
+
+1. 官方状态页 / 官方产品公告 / 官方帮助中心 / 官方开发者博客
+2. Search Engine Land / AdExchanger / Jon Loomer / AppsFlyer 这类专业媒体与专家源
+3. Reddit / X / 社区讨论
+
+冲突处理：
+
+- 官方源和社区源冲突时，以官方源为主
+- 官方源缺位时，可先用聚类后的社区事件，但要明确标注“社区侧已出现集中反馈”
 
 ---
 
