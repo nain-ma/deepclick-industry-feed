@@ -57,6 +57,9 @@ test('evaluateRawItem keeps outage signals from official ad status feeds', () =>
 
   assert.equal(result.accepted, true);
   assert.ok(result.score >= 70);
+  assert.equal(result.eventType, 'outage');
+  assert.equal(result.eventPlatform, 'meta');
+  assert.ok(result.eventSignals.includes('official-source'));
 });
 
 test('evaluateRawItem rejects low-signal emotional community titles', () => {
@@ -72,6 +75,24 @@ test('evaluateRawItem rejects low-signal emotional community titles', () => {
   }, { mode: 'scheduled' });
 
   assert.equal(result.accepted, false);
+});
+
+test('evaluateRawItem recognizes policy/platform restriction events', () => {
+  const result = evaluateRawItem({
+    name: 'GameLook',
+    source_name: 'GameLook',
+    type: 'rss',
+    title: 'Unity 中国大陆及港澳用户将无法继续使用海外 Asset Store',
+    content: 'Unity 表示自 2026 年 3 月 31 日起，中国大陆及港澳用户后续只能使用中国资源商店，并建议提前 Download all。',
+    url: 'https://example.com/unity-asset-store',
+    fetched_at: '2026-03-04 00:00:00',
+    metadata: '{}',
+  }, { mode: 'scheduled' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.eventType, 'policy');
+  assert.equal(result.eventIssue, 'asset-store');
+  assert.ok(result.seoTopicAngles.some((angle) => angle.includes('应对')));
 });
 
 test('rankRawItems removes duplicate titles and sorts by score', () => {
@@ -129,4 +150,37 @@ test('rankRawItems clusters outage chatter and keeps the strongest signal', () =
 
   assert.equal(ranked.length, 1);
   assert.equal(ranked[0].source_name, 'Meta Ads Manager Outages');
+  assert.equal(ranked[0].event_confidence, 'high');
+  assert.ok(ranked[0].corroboration_score >= 12);
+});
+
+test('rankRawItems boosts corroborated tiktok anomaly events', () => {
+  const ranked = rankRawItems([
+    {
+      name: 'r/TikTokAds',
+      source_name: 'r/TikTokAds',
+      type: 'reddit',
+      title: 'TikTok ads spend not moving today?',
+      content: 'New campaigns are not spending and old campaigns have strange reporting delays.',
+      url: 'https://reddit.example.com/tiktok-1',
+      fetched_at: '2026-03-04 00:00:00',
+      metadata: '{"score":55,"num_comments":18}',
+    },
+    {
+      name: 'Talkwalker: Master Feed',
+      source_name: 'Talkwalker: Master Feed',
+      type: 'rss',
+      title: 'Advertisers report TikTok ads outage and CapCut issues',
+      content: 'Multiple advertisers say TikTok Ads delivery is down while CapCut service issue reports spike.',
+      url: 'https://example.com/tiktok-2',
+      fetched_at: '2026-03-04 00:05:00',
+      metadata: '{}',
+    },
+  ], { mode: 'scheduled' });
+
+  assert.equal(ranked.length, 1);
+  assert.equal(ranked[0].event_type, 'outage');
+  assert.equal(ranked[0].event_platform, 'tiktok');
+  assert.equal(ranked[0].event_confidence, 'medium');
+  assert.ok(ranked[0].seo_topic_angles.includes('tiktok ads 宕机/异常排查'));
 });

@@ -52,6 +52,7 @@ const STRONG_INCLUDE_PATTERNS = [
   /\btiktok\b/i,
   /\bkwai\b/i,
   /\bkuaishou\b/i,
+  /\bunity\b/i,
   /\bgoogle ads\b/i,
   /\bads manager\b/i,
   /\bbusiness manager\b/i,
@@ -168,6 +169,63 @@ const OUTAGE_PATTERNS = [
   /\bnot working\b/i,
   /\bbugged?\b/i,
   /\bbroken\b/i,
+  /\bnot spending\b/i,
+  /\bspend not moving\b/i,
+];
+
+const POLICY_PATTERNS = [
+  /\bpolicy\b/i,
+  /\bdeprecat(?:e|ed|ion)\b/i,
+  /\bretir(?:e|ing|ed)\b/i,
+  /\bsunset\b/i,
+  /\bno longer available\b/i,
+  /\bcan(?:not|'t) continue\b/i,
+  /\bunable to continue using\b/i,
+  /\bstop(?:ped|ping)? support\b/i,
+  /限制/,
+  /下架/,
+  /停止支持/,
+  /无法继续使用/,
+];
+
+const SECURITY_PATTERNS = [
+  /\bcve-\d{4}-\d+\b/i,
+  /\bvulnerabilit(?:y|ies)\b/i,
+  /\bsecurity flaw\b/i,
+  /\bexploit\b/i,
+  /\bemergency update\b/i,
+];
+
+const SALE_PATTERNS = [
+  /\bacqui(?:re|sition)\b/i,
+  /\bsale\b/i,
+  /\bvaluation\b/i,
+  /\bstrategic review\b/i,
+  /\bseeking buyers?\b/i,
+  /\b出售\b/,
+  /\b估值\b/,
+  /\b收购\b/,
+];
+
+const MEASUREMENT_PATTERNS = [
+  /\battribution\b/i,
+  /\bmeasurement\b/i,
+  /\bpixel\b/i,
+  /\bconversion(?:s)? api\b/i,
+  /\breporting\b/i,
+  /\btracking\b/i,
+  /\b回传\b/,
+  /\b归因\b/,
+  /\b转化追踪\b/,
+];
+
+const FEATURE_PATTERNS = [
+  /\blaunch(?:ed|es)?\b/i,
+  /\broll(?:ing)? out\b/i,
+  /\bnew feature\b/i,
+  /\bintroduc(?:e|es|ed)\b/i,
+  /\bupdate\b/i,
+  /\bopen beta\b/i,
 ];
 
 function normalizedName(source) {
@@ -210,11 +268,14 @@ function platformKey(text) {
   if (/\btiktok\b/i.test(text)) return 'tiktok';
   if (/\bgoogle ads\b|\bgoogle\b/i.test(text)) return 'google';
   if (/\bkwai\b|\bkuaishou\b/i.test(text)) return 'kwai';
+  if (/\bunity\b/i.test(text)) return 'unity';
   if (/\bthe trade desk\b|\bttd\b/i.test(text)) return 'ttd';
   return 'generic';
 }
 
 function issueKey(text) {
+  if (/\basset store\b|\bresource store\b|\bmy assets\b/i.test(text)) return 'asset-store';
+  if (/\bapi\b/i.test(text)) return 'api';
   if (/\bads manager\b|\bmanager\b/i.test(text)) return 'manager';
   if (/\bdelivery\b/i.test(text)) return 'delivery';
   if (/\breporting\b|\breport\b/i.test(text)) return 'reporting';
@@ -225,16 +286,100 @@ function issueKey(text) {
   return 'general';
 }
 
+function detectEventType(text) {
+  if (hasPattern(OUTAGE_PATTERNS, text) || /\b异常\b|\b宕机\b|\b消耗起不来\b|\b起量\b|\b服务异常\b|\b回传数据.*异常\b/.test(text)) {
+    return 'outage';
+  }
+  if (hasPattern(POLICY_PATTERNS, text)) return 'policy';
+  if (hasPattern(MEASUREMENT_PATTERNS, text)) return 'measurement';
+  if (hasPattern(SECURITY_PATTERNS, text)) return 'security';
+  if (hasPattern(SALE_PATTERNS, text)) return 'deal';
+  if (hasPattern(FEATURE_PATTERNS, text)) return 'feature';
+  return 'general';
+}
+
+function eventTypeBonus(eventType) {
+  switch (eventType) {
+    case 'outage':
+      return 18;
+    case 'policy':
+      return 16;
+    case 'measurement':
+      return 14;
+    case 'security':
+      return 14;
+    case 'deal':
+      return 10;
+    case 'feature':
+      return 6;
+    default:
+      return 0;
+  }
+}
+
+function seoAnglesForEvent(platform, eventType, issue) {
+  const readablePlatform = platform === 'generic' ? '平台' : platform;
+  switch (eventType) {
+    case 'outage':
+      return [
+        `${readablePlatform} ads 宕机/异常排查`,
+        `${readablePlatform} 广告消耗或回传异常怎么办`,
+        `${readablePlatform} outage 对广告主投放的影响`,
+      ];
+    case 'policy':
+      return [
+        `${readablePlatform} 政策或资源限制变化解读`,
+        `${readablePlatform} ${issue} 调整后如何应对`,
+        `${readablePlatform} 变化对团队迁移与维护成本的影响`,
+      ];
+    case 'measurement':
+      return [
+        `${readablePlatform} 归因或回传异常解读`,
+        `${readablePlatform} measurement 变化对 CPA/ROAS 的影响`,
+        `${readablePlatform} 转化追踪波动的排查流程`,
+      ];
+    case 'security':
+      return [
+        `${readablePlatform} 安全漏洞影响评估`,
+        `${readablePlatform} 紧急修复与版本升级指南`,
+      ];
+    case 'deal':
+      return [
+        `${readablePlatform} 业务出售/并购对生态的影响`,
+        `${readablePlatform} 平台战略变化对开发者和广告主意味着什么`,
+      ];
+    default:
+      return [
+        `${readablePlatform} 最新变化对广告主的影响`,
+        `${readablePlatform} 变化后的应对策略`,
+      ];
+  }
+}
+
+function evidenceSignals(text, item) {
+  const signals = [];
+  if (hasPattern(OUTAGE_PATTERNS, text) || /\b异常\b|\b宕机\b|\b消耗起不来\b|\b服务异常\b|\b回传数据.*异常\b/.test(text)) signals.push('outage-keyword');
+  if (hasPattern(POLICY_PATTERNS, text)) signals.push('policy-keyword');
+  if (hasPattern(MEASUREMENT_PATTERNS, text)) signals.push('measurement-keyword');
+  if (/\b\d+%|\b(cpa|cvr|roi|roas|ctr)\b/i.test(text)) signals.push('quant-data');
+  if (officialSignalBonus(item) > 0) signals.push('official-source');
+  if (engagementScore(item) >= 6) signals.push('community-traction');
+  return signals;
+}
+
 function buildClusterKey(item, evaluation) {
   const normalized = evaluation.normalizedTitle || normalizeTitle(item.title);
   const text = textBlob(item);
+  const eventType = evaluation.eventType || detectEventType(text);
+  const platform = evaluation.eventPlatform || platformKey(text);
+  const issue = evaluation.eventIssue || issueKey(text);
 
-  if (hasPattern(OUTAGE_PATTERNS, text)) {
-    return `incident:${platformKey(text)}:${issueKey(text)}`;
-  }
-
-  if (/\battribution\b/i.test(text)) {
-    return `attribution:${platformKey(text)}:${issueKey(text)}`;
+  if (eventType !== 'general') {
+    if (eventType === 'outage') {
+      const outageIssue = issue === 'api' ? 'api' : 'operations';
+      return `${eventType}:${platform}:${outageIssue}`;
+    }
+    return `${eventType}:${platform}:${issue}`;
   }
 
   return normalized;
@@ -293,6 +438,9 @@ export function evaluateRawItem(item, options = {}) {
   const sourcePolicy = classifySource(item);
   const text = textBlob(item);
   const title = String(item.title || '');
+  const eventPlatform = platformKey(text);
+  const eventIssue = issueKey(text);
+  const eventType = detectEventType(text);
   const strongMatches = countMatches(STRONG_INCLUDE_PATTERNS, text);
   const weakMatches = countMatches(WEAK_INCLUDE_PATTERNS, text);
   const excludeMatches = countMatches(EXCLUDE_PATTERNS, text);
@@ -300,10 +448,13 @@ export function evaluateRawItem(item, options = {}) {
   const lowSignalContent = hasPattern(LOW_SIGNAL_CONTENT_PATTERNS, text);
   const communityNoisePenalty = (lowSignalTitle ? 40 : 0) + (lowSignalContent ? 30 : 0);
   const quantitativeSignal = /\b\d+%|\b(cpa|cvr|roi|roas|ctr)\b/i.test(text) ? 8 : 0;
+  const eventBonus = eventTypeBonus(eventType);
+  const eventSignals = evidenceSignals(text, item);
   const score = sourcePolicy.weight +
     Math.min(30, strongMatches * 12) +
     Math.min(12, weakMatches * 4) +
     quantitativeSignal +
+    eventBonus +
     officialSignalBonus(item) +
     engagementScore(item) +
     freshnessScore(item) -
@@ -346,6 +497,11 @@ export function evaluateRawItem(item, options = {}) {
     excludeMatches,
     lowSignalTitle,
     lowSignalContent,
+    eventType,
+    eventPlatform,
+    eventIssue,
+    eventSignals,
+    seoTopicAngles: seoAnglesForEvent(eventPlatform, eventType, eventIssue),
   };
 }
 
@@ -362,13 +518,70 @@ export function rankRawItems(items, options = {}) {
       source_tier: evaluation.sourcePolicy.tier,
       source_weight: evaluation.sourcePolicy.weight,
       source_reason: evaluation.sourcePolicy.reason,
+      event_type: evaluation.eventType,
+      event_platform: evaluation.eventPlatform,
+      event_issue: evaluation.eventIssue,
+      event_signals: JSON.stringify(evaluation.eventSignals),
+      seo_topic_angles: JSON.stringify(evaluation.seoTopicAngles),
       policy_metrics: JSON.stringify({
         strong_matches: evaluation.strongMatches,
         weak_matches: evaluation.weakMatches,
         exclude_matches: evaluation.excludeMatches,
         low_signal_title: evaluation.lowSignalTitle,
         low_signal_content: evaluation.lowSignalContent,
+        event_type: evaluation.eventType,
+        event_platform: evaluation.eventPlatform,
+        event_issue: evaluation.eventIssue,
+        event_signals: evaluation.eventSignals,
       }),
+    });
+  }
+
+  const clusters = new Map();
+  for (const item of accepted) {
+    const key = item.cluster_key || normalizeTitle(item.title);
+    const current = clusters.get(key) || {
+      count: 0,
+      sourceNames: new Set(),
+      sourceTypes: new Set(),
+      hasOfficial: false,
+      latestPublishedAt: '',
+    };
+    current.count += 1;
+    current.sourceNames.add(normalizedName(item));
+    current.sourceTypes.add(String(item.type || 'unknown'));
+    if (officialSignalBonus(item) > 0) current.hasOfficial = true;
+    const publishedAt = String(item.published_at || item.fetched_at || '');
+    if (publishedAt > current.latestPublishedAt) current.latestPublishedAt = publishedAt;
+    clusters.set(key, current);
+  }
+
+  for (const item of accepted) {
+    const cluster = clusters.get(item.cluster_key || normalizeTitle(item.title));
+    const corroborationScore =
+      Math.min(18, Math.max(0, cluster.count - 1) * 6) +
+      Math.min(10, Math.max(0, cluster.sourceNames.size - 1) * 4) +
+      Math.min(8, Math.max(0, cluster.sourceTypes.size - 1) * 3) +
+      (cluster.hasOfficial ? 12 : 0);
+    const eventConfidence =
+      item.event_type === 'general'
+        ? 'low'
+        : (cluster.hasOfficial || corroborationScore >= 18)
+          ? 'high'
+          : corroborationScore >= 8
+            ? 'medium'
+            : 'low';
+    item.corroboration_count = cluster.count;
+    item.corroboration_sources = cluster.sourceNames.size;
+    item.corroboration_score = corroborationScore;
+    item.event_confidence = eventConfidence;
+    item.relevance_score += corroborationScore;
+    item.policy_metrics = JSON.stringify({
+      ...JSON.parse(item.policy_metrics),
+      corroboration_count: cluster.count,
+      corroboration_sources: cluster.sourceNames.size,
+      corroboration_score: corroborationScore,
+      event_confidence: eventConfidence,
     });
   }
 

@@ -113,17 +113,22 @@ handle_path /digest/* {
 
 1. 先从 `/api/raw-items/for-digest` 拉取一个够大的候选池。
    建议：`4h/8h` 读 `40-80` 条，`daily` 读 `80-150` 条。
-2. 先做事件聚类，再做摘要。
+2. 先识别事件，再做事件聚类。
+   默认把每条候选映射到 `event_type / event_platform / event_issue / corroboration_score / seo_topic_angles`，先判断“是不是事件”，再判断“值不值得写”。
+3. 先做事件聚类，再做摘要。
    同一个 outage、同一个 attribution update、同一个 policy 变化，不要把 Reddit 多条抱怨逐条写进 digest。
-3. 优先官方源，其次行业媒体，最后才是社区帖子。
+4. 优先官方源，其次行业媒体，最后才是社区帖子。
    官方状态页 / 官方产品更新 / 官方政策页 > Search Engine Land / AdExchanger > Reddit/X 社区讨论。
-4. 社区帖子默认当“佐证信号”，不是默认主角。
+5. 社区帖子默认当“佐证信号”，不是默认主角。
    只有在出现以下任一情况时，社区帖子才可以升到主信号：
    - 官方源还没发，但 2 条以上独立社区帖子在描述同类异常
    - 帖子包含明确量化影响，如预算异常、CVR/CPA 明显变化、审批/归因口径变化
    - 社区帖子本身指向官方公告、状态页或帮助文档
-5. 任何报告都要显式过滤低价值帖子。
+6. 任何报告都要显式过滤低价值帖子。
    包括：纯求助、入门问答、情绪发泄、账号买卖、职业吐槽、泛技巧贴。
+7. 在输出 digest 前，默认追加 `SEO 题材建议`。
+   每个高置信事件至少给 1 个可写方向，格式优先为：
+   `平台变化 -> 广告主影响 -> 应对策略`
 
 ## 默认选材边界
 
@@ -133,6 +138,7 @@ handle_path /digest/* {
 - 平台 outage、delivery/reporting/login/审核异常
 - 归因、tracking、pixel、Conversions API、Privacy Sandbox、ATT 类变化
 - Meta / TikTok / Google / Kwai 官方产品更新，尤其是定向、预算、投放位、measurement
+- Unity 等生态平台的商店/政策/版本供应限制，只要它会明显影响开发者或广告主执行
 - 广告主大面积讨论的异常波动，前提是能形成事件级聚类
 - 能直接转成 SEO blog 的“平台变化 -> 广告主影响 -> 应对策略”题目
 
@@ -148,10 +154,12 @@ handle_path /digest/* {
 当用户让 Agent “跑一版报告看看效果”时：
 
 1. 先拉候选池。
-2. 依据 `templates/curation-rules.md` 和 `references/selection-playbook.md` 做聚类与过滤。
-3. 再按 `templates/digest-prompt.md` 产出。
-4. 如果系统可写，优先写入 `/api/digests`，然后返回深链。
-5. 如果系统不可写，直接在对话里返回完整 digest，但仍然保持相同结构。
+2. 先按 `event_type / event_platform / corroboration_score` 做一轮事件级筛选。
+3. 再依据 `templates/curation-rules.md` 和 `references/selection-playbook.md` 做聚类与过滤。
+4. 再按 `templates/digest-prompt.md` 产出。
+5. 如用户目标包含内容生产或 SEO，额外输出 `SEO 题材建议`。
+6. 如果系统可写，优先写入 `/api/digests`，然后返回深链。
+7. 如果系统不可写，直接在对话里返回完整 digest，但仍然保持相同结构。
 
 ## 调试与模板迭代（给老板快速看样）
 
