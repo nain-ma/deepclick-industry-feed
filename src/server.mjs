@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
 import { isPrivateOrSpecialIp, assertSafeFetchUrl, httpFetch } from './http.mjs';
 import { runCollection } from './collector.mjs';
-import { getDb, listDigests, getDigest, createDigest, listMarks, createMark, deleteMark, getConfig, setConfig, upsertUser, createSession, getSession, deleteSession, listSources, getSource, createSource, updateSource, deleteSource, getSourceByTypeConfig, getUserBySlug, listDigestsByUser, countDigestsByUser, createPack, getPack, getPackBySlug, listPacks, incrementPackInstall, deletePack, listSubscriptions, subscribe, unsubscribe, bulkSubscribe, isSubscribed, createFeedback, getUserFeedback, getAllFeedback, replyToFeedback, updateFeedbackStatus, markFeedbackRead, getUnreadFeedbackCount, getRawItemStats, getRawItemsForDigest } from './db.mjs';
+import { getDb, listDigests, getDigest, createDigest, listMarks, createMark, deleteMark, getConfig, setConfig, upsertUser, ensureInternalUser, createSession, getSession, deleteSession, listSources, getSource, createSource, updateSource, deleteSource, getSourceByTypeConfig, getUserBySlug, listDigestsByUser, countDigestsByUser, createPack, getPack, getPackBySlug, listPacks, incrementPackInstall, deletePack, listSubscriptions, subscribe, unsubscribe, bulkSubscribe, isSubscribed, createFeedback, getUserFeedback, getAllFeedback, replyToFeedback, updateFeedbackStatus, markFeedbackRead, getUnreadFeedbackCount, getRawItemStats, getRawItemsForDigest } from './db.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -28,6 +28,8 @@ const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = env.GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
 const SESSION_SECRET = env.SESSION_SECRET || process.env.SESSION_SECRET;
 const API_KEY = env.API_KEY || process.env.API_KEY || '';
+const PUBLIC_API_MODE = String(env.PUBLIC_API_MODE || process.env.PUBLIC_API_MODE || 'true').toLowerCase() !== 'false';
+const AUTH_ENABLED = !PUBLIC_API_MODE && !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET);
 const ALLOWED_ORIGINS = (env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS || 'localhost').split(',').map(o => o.trim()).filter(Boolean);
 const PORT = process.env.DIGEST_PORT || env.DIGEST_PORT || 8767;
 const OAUTH_STATE_SECRET = env.OAUTH_STATE_SECRET || process.env.OAUTH_STATE_SECRET || SESSION_SECRET || API_KEY || 'dev-state-secret';
@@ -160,6 +162,11 @@ function httpsPost(url, body) {
 
 // Auth middleware: attach req.user if valid session
 function attachUser(req) {
+  if (PUBLIC_API_MODE) {
+    req.user = ensureInternalUser(db);
+    req.sessionId = null;
+    return;
+  }
   const cookies = parseCookies(req);
   const sessionVal = cookies[COOKIE_NAME];
   if (sessionVal) {
@@ -169,6 +176,14 @@ function attachUser(req) {
       req.sessionId = sessionVal;
     }
   }
+}
+
+function hasWriteAccess(req, params) {
+  if (PUBLIC_API_MODE) return true;
+  const key = params?.get('key') || '';
+  const authHeader = req.headers.authorization || '';
+  const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  return !!API_KEY && (key === API_KEY || bearerKey === API_KEY);
 }
 
 function _digestTitle(d, ca) {
@@ -389,12 +404,12 @@ const server = createServer(async (req, res) => {
 
     // GET /api/auth/config — tells frontend if auth is available
     if (req.method === 'GET' && path === '/api/auth/config') {
-      const authEnabled = !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET);
-      return json(res, { authEnabled });
+      return json(res, { authEnabled: AUTH_ENABLED, publicApiMode: PUBLIC_API_MODE });
     }
 
     // GET /api/auth/google
     if (req.method === 'GET' && path === '/api/auth/google') {
+      if (!AUTH_ENABLED) return json(res, { error: 'auth disabled' }, 404);
       const originCandidate = params.get('origin') || req.headers.referer || (req.headers.host ? `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}` : `http://localhost:${PORT}`);
       const origin = normalizeOrigin(originCandidate);
       if (!origin || !isAllowedOrigin(origin)) return json(res, { error: 'origin not allowed' }, 400);
@@ -418,6 +433,7 @@ const server = createServer(async (req, res) => {
 
     // GET /api/auth/callback
     if (req.method === 'GET' && path === '/api/auth/callback') {
+      if (!AUTH_ENABLED) return json(res, { error: 'auth disabled' }, 404);
       const code = params.get('code');
       const stateRaw = params.get('state');
       if (!code) return json(res, { error: 'missing code' }, 400);
@@ -500,9 +516,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && path === '/api/digests') {
-      const authHeader = req.headers.authorization || '';
-      const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-      if (!API_KEY || bearerKey !== API_KEY) return json(res, { error: 'invalid api key' }, 401);
+      if (!hasWriteAccess(req, params)) return json(res, { error: 'invalid api key' }, 401);
       const body = await parseBody(req);
       body.type = normalizeDigestType(body.type, '4h');
       const result = createDigest(db, body);
@@ -587,7 +601,6 @@ const server = createServer(async (req, res) => {
 
     // ── Source resolve endpoint ──
     if (req.method === 'POST' && path === '/api/sources/resolve') {
-      if (!req.user) return json(res, { error: 'login required' }, 401);
       const body = await parseBody(req);
       const url = (body.url || '').trim();
       if (!url) return json(res, { error: 'url required' }, 400);
@@ -617,35 +630,32 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && sourceMatch) {
       const s = getSource(db, parseInt(sourceMatch[1]));
       if (!s) return json(res, { error: 'not found' }, 404);
-      if (!s.is_public && (!req.user || s.created_by !== req.user.id)) {
+      if (!PUBLIC_API_MODE && !s.is_public && (!req.user || s.created_by !== req.user.id)) {
         return json(res, { error: 'not found' }, 404);
       }
       return json(res, s);
     }
 
     if (req.method === 'POST' && path === '/api/sources') {
-      if (!req.user) return json(res, { error: 'login required' }, 401);
       const body = await parseBody(req);
       const result = createSource(db, { ...body, createdBy: req.user.id });
       return json(res, result, 201);
     }
 
     if (req.method === 'PUT' && sourceMatch) {
-      if (!req.user) return json(res, { error: 'login required' }, 401);
       const s = getSource(db, parseInt(sourceMatch[1]));
       if (!s) return json(res, { error: 'not found' }, 404);
-      if (s.created_by !== req.user.id) return json(res, { error: 'forbidden' }, 403);
+      if (!PUBLIC_API_MODE && s.created_by !== req.user.id) return json(res, { error: 'forbidden' }, 403);
       const body = await parseBody(req);
       updateSource(db, parseInt(sourceMatch[1]), body);
       return json(res, { ok: true });
     }
 
     if (req.method === 'DELETE' && sourceMatch) {
-      if (!req.user) return json(res, { error: 'login required' }, 401);
       const s = getSource(db, parseInt(sourceMatch[1]));
       if (!s) return json(res, { error: 'not found' }, 404);
-      if (s.created_by !== req.user.id) return json(res, { error: 'forbidden' }, 403);
-      deleteSource(db, parseInt(sourceMatch[1]), req.user.id);
+      if (!PUBLIC_API_MODE && s.created_by !== req.user.id) return json(res, { error: 'forbidden' }, 403);
+      deleteSource(db, parseInt(sourceMatch[1]), PUBLIC_API_MODE ? undefined : req.user.id);
       return json(res, { ok: true });
     }
 
@@ -660,7 +670,6 @@ const server = createServer(async (req, res) => {
     const packInstallMatch = path.match(/^\/api\/packs\/([a-z0-9_-]+)\/install$/);
 
     if (req.method === 'POST' && packInstallMatch) {
-      if (!req.user) return json(res, { error: 'login required' }, 401);
       const pack = getPackBySlug(db, packInstallMatch[1]);
       if (!pack) return json(res, { error: 'not found' }, 404);
       const sources = JSON.parse(pack.sources_json || '[]');
@@ -692,12 +701,11 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && packSlugMatch) {
       const pack = getPackBySlug(db, packSlugMatch[1]);
       if (!pack) return json(res, { error: 'not found' }, 404);
-      if (!pack.is_public && (!req.user || pack.created_by !== req.user.id)) return json(res, { error: 'not found' }, 404);
+      if (!PUBLIC_API_MODE && !pack.is_public && (!req.user || pack.created_by !== req.user.id)) return json(res, { error: 'not found' }, 404);
       return json(res, { ...pack, sources: JSON.parse(pack.sources_json || '[]'), sources_json: undefined });
     }
 
     if (req.method === 'POST' && path === '/api/packs') {
-      if (!req.user) return json(res, { error: 'login required' }, 401);
       const body = await parseBody(req);
       const name = (body.name || '').trim();
       if (!name) return json(res, { error: 'name required' }, 400);
@@ -714,10 +722,9 @@ const server = createServer(async (req, res) => {
 
     const packIdMatch = path.match(/^\/api\/packs\/(\d+)$/);
     if (req.method === 'DELETE' && packIdMatch) {
-      if (!req.user) return json(res, { error: 'login required' }, 401);
       const pack = getPack(db, parseInt(packIdMatch[1]));
       if (!pack) return json(res, { error: 'not found' }, 404);
-      if (pack.created_by !== req.user.id) return json(res, { error: 'forbidden' }, 403);
+      if (!PUBLIC_API_MODE && pack.created_by !== req.user.id) return json(res, { error: 'forbidden' }, 403);
       deletePack(db, pack.id);
       return json(res, { ok: true });
     }
@@ -761,19 +768,13 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && path === '/api/feedback/all') {
-      const key = params.get('key') || '';
-      const authHeader = req.headers.authorization || '';
-      const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-      if (!API_KEY || (key !== API_KEY && bearerKey !== API_KEY)) return json(res, { error: 'invalid api key' }, 401);
+      if (!hasWriteAccess(req, params)) return json(res, { error: 'invalid api key' }, 401);
       return json(res, getAllFeedback(db));
     }
 
     const feedbackReplyMatch = path.match(/^\/api\/feedback\/(\d+)\/reply$/);
     if (req.method === 'POST' && feedbackReplyMatch) {
-      const key = params.get('key') || '';
-      const authHeader = req.headers.authorization || '';
-      const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-      if (!API_KEY || (key !== API_KEY && bearerKey !== API_KEY)) return json(res, { error: 'invalid api key' }, 401);
+      if (!hasWriteAccess(req, params)) return json(res, { error: 'invalid api key' }, 401);
       const body = await parseBody(req);
       if (!body.reply) return json(res, { error: 'reply required' }, 400);
       replyToFeedback(db, parseInt(feedbackReplyMatch[1]), body.reply, body.replied_by || 'agent');
@@ -783,10 +784,7 @@ const server = createServer(async (req, res) => {
     // PATCH /api/feedback/:id/status
     const feedbackStatusMatch = path.match(/^\/api\/feedback\/(\d+)\/status$/);
     if (req.method === 'PATCH' && feedbackStatusMatch) {
-      const key = params.get('key') || '';
-      const authHeader = req.headers.authorization || '';
-      const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-      if (!API_KEY || (key !== API_KEY && bearerKey !== API_KEY)) return json(res, { error: 'invalid api key' }, 401);
+      if (!hasWriteAccess(req, params)) return json(res, { error: 'invalid api key' }, 401);
       const body = await parseBody(req);
       const validStatuses = ['open', 'auto_draft', 'needs_human', 'replied', 'closed'];
       if (!validStatuses.includes(body.status)) return json(res, { error: 'invalid status' }, 400);
@@ -821,9 +819,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'PUT' && path === '/api/config') {
-      const authHeader = req.headers.authorization || '';
-      const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-      if (!API_KEY || bearerKey !== API_KEY) return json(res, { error: 'invalid api key' }, 401);
+      if (!hasWriteAccess(req, params)) return json(res, { error: 'invalid api key' }, 401);
       const body = await parseBody(req);
       for (const [k, v] of Object.entries(body)) setConfig(db, k, v);
       return json(res, { ok: true });
@@ -832,9 +828,7 @@ const server = createServer(async (req, res) => {
     // ── Collection & Raw Items endpoints (API key auth) ──
 
     if (req.method === 'POST' && path === '/api/collect/run') {
-      const authHeader = req.headers.authorization || '';
-      const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-      if (!API_KEY || bearerKey !== API_KEY) return json(res, { error: 'invalid api key' }, 401);
+      if (!hasWriteAccess(req, params)) return json(res, { error: 'invalid api key' }, 401);
       const body = await parseBody(req);
       const intervalMinutes = parseInt(body.intervalMinutes) || 60;
       const results = await runCollection(db, { intervalMinutes });
@@ -842,16 +836,12 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && path === '/api/raw-items/stats') {
-      const authHeader = req.headers.authorization || '';
-      const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-      if (!API_KEY || bearerKey !== API_KEY) return json(res, { error: 'invalid api key' }, 401);
+      if (!hasWriteAccess(req, params)) return json(res, { error: 'invalid api key' }, 401);
       return json(res, getRawItemStats(db));
     }
 
     if (req.method === 'GET' && path === '/api/raw-items/for-digest') {
-      const authHeader = req.headers.authorization || '';
-      const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-      if (!API_KEY || bearerKey !== API_KEY) return json(res, { error: 'invalid api key' }, 401);
+      if (!hasWriteAccess(req, params)) return json(res, { error: 'invalid api key' }, 401);
       const hours = parseInt(params.get('hours') || '24');
       const limit = Math.min(parseInt(params.get('limit') || '200'), 1000);
       const mode = params.get('mode') || 'scheduled';
