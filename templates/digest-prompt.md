@@ -38,6 +38,10 @@ Produce a **flat, scannable feed** — NOT a long-form report. Every signal is o
 2. [本周] 具体行动 — 引用上文信号
 3. [本月] 具体行动 — 引用上文信号
 
+📝 SEO 题材建议
+1. 题目 — 为什么现在值得写 / 对应哪条事件
+2. 题目 — 为什么现在值得写 / 对应哪条事件
+
 ⚡ 已过滤
 • 过滤了 N 条通用营销技巧（无 CPA/CVR 角度）
 • 过滤了 N 条非 Meta 平台独占内容
@@ -116,6 +120,16 @@ Produce a **flat, scannable feed** — NOT a long-form report. Every signal is o
 - 写出具体动作（不是 "持续关注"）
 - 引用上文某条信号
 
+### 📝 SEO 题材建议
+
+**默认出现**，至少 2 条，最多 6 条。只有当热点事件不足 2 条时可以缩减。
+
+每条题材必须：
+- 直接来自本期高置信事件，而不是凭空发散
+- 能落成 `平台变化 -> 受影响人群 -> 应对方式` 结构
+- 指明为什么现在值得写
+- 尽量覆盖 outage / policy / measurement 这类高搜索意图话题
+
 ### ⚡ 已过滤
 
 透明展示本期被过滤的内容类型和数量，让增长负责人知道你审阅了多少、过滤了什么。这一段是建立信任的关键——证明你不是什么都往里塞，而是做了严格筛选。
@@ -149,6 +163,8 @@ Produce a **flat, scannable feed** — NOT a long-form report. Every signal is o
 
 10. **SEO 友好性** — 当多条信号都成立时，优先保留可以被扩展成以下结构的事件：
    `平台变化 -> 广告主影响 -> DeepClick 机会/应对`
+
+11. **按事件证据写，不按单帖热度写** — 优先使用候选项里的 `event_type / event_platform / event_issue / corroboration_score / event_confidence / seo_topic_angles`。如果事件置信度低，不要硬写成热点。
 
 ---
 
