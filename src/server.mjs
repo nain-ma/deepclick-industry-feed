@@ -854,8 +854,9 @@ const server = createServer(async (req, res) => {
       if (!API_KEY || bearerKey !== API_KEY) return json(res, { error: 'invalid api key' }, 401);
       const hours = parseInt(params.get('hours') || '24');
       const limit = Math.min(parseInt(params.get('limit') || '200'), 1000);
+      const mode = params.get('mode') || 'scheduled';
       const sourceIds = params.get('sources') ? params.get('sources').split(',').map(Number).filter(Boolean) : undefined;
-      return json(res, getRawItemsForDigest(db, { hours, limit, sourceIds }));
+      return json(res, getRawItemsForDigest(db, { hours, limit, sourceIds, mode }));
     }
 
     json(res, { error: 'not found' }, 404);

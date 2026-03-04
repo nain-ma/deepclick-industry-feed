@@ -101,6 +101,10 @@ curl -X POST http://localhost:8767/api/collect/run \
 # 6. 查看采集状态
 curl http://localhost:8767/api/raw-items/stats \
   -H "Authorization: Bearer YOUR_API_KEY"
+
+# 7. 修复已知高价值坏源（可选）
+X_PROXY_CANDIDATES='https://your-rss-bridge.example.com,https://your-nitter.example.com' \
+npm run repair:sources
 ```
 
 ## 环境变量
@@ -114,6 +118,16 @@ curl http://localhost:8767/api/raw-items/stats \
 | `GOOGLE_CLIENT_SECRET` | Google OAuth | 否 | - |
 | `SESSION_SECRET` | Session 加密密钥 | 否 | - |
 | `ALLOWED_ORIGINS` | CORS 允许的源 | 否 | localhost |
+| `X_PROXY_CANDIDATES` | 自建 X 抓取候选地址，逗号分隔，建议填 RSS-Bridge / Nitter | 否 | - |
+
+## 源修复建议
+
+- `RSS` 抓取现在支持更大的响应体和容错解析，能恢复 `Instapage`、`VWO`、`Jon Loomer` 这类内容较大的 feed。
+- `Optimizely Blog` 已改为 `website` 模式，从博客列表页提取最近文章，避免继续依赖失效的 feed URL。
+- `twitter_feed` 不再建议依赖公共代理。推荐自建：
+  - `RSS-Bridge` 的 `TwitterV2` bridge
+  - `Nitter` / `xcancel` 类 RSS 服务
+- 配置好后，把地址写进 `X_PROXY_CANDIDATES`，再执行 `npm run repair:sources` 批量更新现有 source 配置。
 
 ## 项目结构
 

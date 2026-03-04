@@ -97,7 +97,7 @@ export class HttpStatusError extends Error {
  * @param {string} url
  * @param {number} timeout - Request timeout in ms (default 15000)
  * @param {number} redirectsLeft - Max redirects to follow (default 3)
- * @param {object} options - Extra options: { headers, useHeaderGenerator }
+ * @param {object} options - Extra options: { headers, useHeaderGenerator, maxBodyBytes }
  */
 export async function httpFetch(url, timeout = 15000, redirectsLeft = 3, options = {}) {
   await assertSafeFetchUrl(url);
@@ -128,8 +128,9 @@ export async function httpFetch(url, timeout = 15000, redirectsLeft = 3, options
   }
 
   let body = response.body;
-  if (body.length > MAX_BODY_BYTES) {
-    body = body.slice(0, MAX_BODY_BYTES);
+  const maxBodyBytes = Number.isFinite(options.maxBodyBytes) ? options.maxBodyBytes : MAX_BODY_BYTES;
+  if (maxBodyBytes > 0 && body.length > maxBodyBytes) {
+    body = body.slice(0, maxBodyBytes);
   }
 
   return { contentType: response.headers['content-type'] || '', body };

@@ -1,35 +1,24 @@
 // src/fetchers/rss.mjs -- RSS/Atom/JSON Feed fetcher
 // Uses @extractus/feed-extractor for parse-only feed parsing.
-// Includes 429 rate-limit aware retry with exponential backoff.
+// Includes 429 rate-limit aware retry, HTML challenge retry, and XML fallback parsing.
 import { createHash } from 'crypto';
 import { extractFromXml, extractFromJson } from '@extractus/feed-extractor';
+import * as cheerio from 'cheerio';
 import { HttpRateLimitError } from '../http.mjs';
 
 const MAX_RETRIES = 3;
-const BASE_DELAY_MS = 3000;   // 3 s initial backoff
-const MAX_DELAY_MS = 60_000;  // cap at 60 s
+const BASE_DELAY_MS = 3000;
+const MAX_DELAY_MS = 60_000;
+const CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.7632.117 Safari/537.36';
 
-/**
- * Sleep for the given number of milliseconds.
- */
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/**
- * Compute the delay before the next retry.
- * If the server sent a Retry-After header, honour it (clamped to MAX_DELAY_MS).
- * Otherwise use exponential backoff with jitter.
- *
- * @param {number} attempt - zero-based attempt index
- * @param {HttpRateLimitError} [err] - the rate-limit error, if available
- * @returns {number} delay in ms
- */
 function retryDelay(attempt, err) {
   if (err?.retryAfterMs != null) {
     return Math.min(err.retryAfterMs + Math.random() * 1000, MAX_DELAY_MS);
   }
-  // Exponential backoff: 3 s, 6 s, 12 s … with +-25 % jitter
   const base = BASE_DELAY_MS * Math.pow(2, attempt);
   const jitter = base * 0.25 * (Math.random() * 2 - 1);
   return Math.min(base + jitter, MAX_DELAY_MS);
@@ -55,81 +44,92 @@ function dedupKey(url, title) {
   return createHash('sha256').update(input).digest('hex');
 }
 
-/**
- * Perform the raw HTTP fetch for an RSS feed, with automatic retry on 429.
- * Respects the Retry-After header when present; otherwise uses exponential backoff.
- *
- * @param {string} url - Feed URL
- * @param {function} httpFetch - SSRF-safe HTTP fetch function (from src/http.mjs)
- * @returns {Promise<{ body: string, contentType: string }>}
- */
+function cleanText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function parseXmlFallback(body) {
+  const $ = cheerio.load(body, { xmlMode: false, decodeEntities: true });
+  const entries = [];
+  $('item, entry').each((_, node) => {
+    if (entries.length >= 50) return false;
+    const el = $(node);
+    const title = cleanText(el.find('title').first().text());
+    const linkHref = el.find('link').first().attr('href');
+    const linkText = cleanText(el.find('link').first().text());
+    const link = cleanText(linkHref || linkText);
+    const description = cleanText(
+      el.find('content\\:encoded').first().text() ||
+      el.find('description').first().text() ||
+      el.find('summary').first().text()
+    );
+    const published = cleanText(
+      el.find('pubDate').first().text() ||
+      el.find('published').first().text() ||
+      el.find('updated').first().text() ||
+      el.find('dc\\:date').first().text()
+    );
+
+    if (!title && !link) return;
+    entries.push({ title, link, description, published });
+  });
+  return { entries };
+}
+
 async function fetchWithRateLimitRetry(url, httpFetch) {
   for (let attempt = 0; ; attempt++) {
     try {
-      return await httpFetch(url);
+      return await httpFetch(url, 20000, 3, { maxBodyBytes: 1_500_000 });
     } catch (err) {
       if (err instanceof HttpRateLimitError && attempt < MAX_RETRIES) {
         const delay = retryDelay(attempt, err);
         console.warn(
-          `[rss] 429 from ${url} — retry ${attempt + 1}/${MAX_RETRIES} in ${Math.round(delay)} ms` +
+          `[rss] 429 from ${url} - retry ${attempt + 1}/${MAX_RETRIES} in ${Math.round(delay)} ms` +
           (err.retryAfter ? ` (Retry-After: ${err.retryAfter})` : '')
         );
         await sleep(delay);
         continue;
       }
-      throw err;  // non-429 error or retries exhausted
+      throw err;
     }
   }
 }
-
-/**
- * Fetch and parse an RSS/Atom/JSON feed from a source.
- * Automatically retries on HTTP 429 with exponential backoff
- * and Retry-After header support.
- *
- * @param {object} source - Source row with .config JSON string containing { url }
- * @param {function} httpFetch - SSRF-safe HTTP fetch function (from src/http.mjs)
- * @returns {Promise<NormalizedItem[]>}
- */
-const CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.7632.117 Safari/537.36';
 
 export async function fetchRss(source, httpFetch) {
   const config = JSON.parse(source.config);
   let { body, contentType } = await fetchWithRateLimitRetry(config.url, httpFetch);
 
-  // If server returned HTML (Cloudflare challenge, bot block, etc.),
-  // retry once with a real Chrome UA and header generator disabled.
   if (body.trimStart().startsWith('<!') || body.trimStart().startsWith('<html')) {
     console.warn(`[rss] Got HTML from ${config.url}, retrying with Chrome UA`);
     const retry = await httpFetch(config.url, 20000, 3, {
       useHeaderGenerator: false,
       headers: { 'User-Agent': CHROME_UA, 'Accept': 'application/rss+xml, application/xml, text/xml, */*' },
+      maxBodyBytes: 1_500_000,
     });
     body = retry.body;
     contentType = retry.contentType;
   }
 
   let feed;
-  // Detect JSON Feed
   if (
     (contentType && contentType.includes('json')) ||
     body.trimStart().startsWith('{')
   ) {
     try {
       feed = extractFromJson(body);
-    } catch {
-      // Fall through to XML parsing if JSON parse fails
-    }
+    } catch {}
   }
+
   if (!feed) {
     const xmlBody = body.trim();
-
-    // Still HTML after retry — feed is truly inaccessible
     if (xmlBody.startsWith('<!') || xmlBody.startsWith('<html')) {
       throw new Error('Server returned HTML instead of RSS/XML (likely Cloudflare challenge or feed removed)');
     }
-
-    feed = extractFromXml(xmlBody);
+    try {
+      feed = extractFromXml(xmlBody);
+    } catch {
+      feed = parseXmlFallback(xmlBody);
+    }
   }
 
   const entries = feed?.entries || [];
