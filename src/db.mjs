@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { classifySource, rankRawItems } from './source-policy.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -286,7 +287,15 @@ export function listSources(db, { activeOnly, userId, includePublic } = {}) {
   }
   if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
   sql += ' ORDER BY created_at DESC';
-  return db.prepare(sql).all(...params);
+  return db.prepare(sql).all(...params).map((source) => {
+    const policy = classifySource(source);
+    return {
+      ...source,
+      source_tier: policy.tier,
+      source_weight: policy.weight,
+      source_reason: policy.reason,
+    };
+  });
 }
 
 export function getSource(db, id) {
@@ -604,7 +613,7 @@ export function getRawItemStats(db) {
  * @param {{ hours?: number, limit?: number, sourceIds?: number[] }} options
  * @returns {Array}
  */
-export function getRawItemsForDigest(db, { hours = 24, limit = 200, sourceIds } = {}) {
+export function getRawItemsForDigest(db, { hours = 24, limit = 200, sourceIds, mode = 'scheduled' } = {}) {
   let sql = `
     SELECT ri.id, ri.source_id, ri.title, ri.url, ri.author, ri.content,
            ri.published_at, ri.fetched_at, ri.metadata,
@@ -623,10 +632,15 @@ export function getRawItemsForDigest(db, { hours = 24, limit = 200, sourceIds } 
   }
 
   sql += `
-    ORDER BY ri.fetched_at DESC
+    ORDER BY COALESCE(ri.published_at, ri.fetched_at) DESC
     LIMIT ?
   `;
-  params.push(limit);
+  params.push(Math.min(limit * 5, 2000));
 
-  return db.prepare(sql).all(...params);
+  const rows = db.prepare(sql).all(...params);
+  return rankRawItems(rows.map((row) => ({
+    ...row,
+    name: row.source_name,
+    type: row.source_type,
+  })), { mode }).slice(0, limit);
 }

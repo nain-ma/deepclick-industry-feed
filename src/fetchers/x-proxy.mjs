@@ -2,6 +2,8 @@
 import { fetchRss } from './rss.mjs';
 
 function stripAt(handle='') { return String(handle).replace(/^@/, ''); }
+function isBridge(base='') { return /rss-bridge/i.test(base); }
+function isNitterLike(base='') { return /nitter|xrss|xcancel/i.test(base); }
 
 function buildFeedUrl(proxyBase, source, config) {
   const base = String(proxyBase || '').replace(/\/$/, '');
@@ -15,19 +17,23 @@ function buildFeedUrl(proxyBase, source, config) {
     if (base.includes('twiiit.com')) {
       throw new Error('twiiit proxy does not support twitter_list route');
     }
-    if (base.includes('rss-bridge.org')) {
+    if (isBridge(base)) {
       // Example: https://rss-bridge.org/bridge01/?action=display&bridge=Twitter&context=By+list&l=<id>&format=Atom
-      return `${base}/?action=display&bridge=Twitter&context=By+list&l=${encodeURIComponent(listId)}&format=Atom`;
+      const bridgeName = config.bridge_name || 'TwitterV2';
+      return `${base}/?action=display&bridge=${encodeURIComponent(bridgeName)}&context=By+list&l=${encodeURIComponent(listId)}&format=Atom`;
     }
+    if (isNitterLike(base)) return `${base}/i/lists/${listId}/rss`;
     return `${base}/twitter/list/${listId}`;
   }
 
   if (!handle) throw new Error('X proxy requires handle in source config');
 
   if (base.includes('twiiit.com')) return `${base}/${handle}/rss`;
-  if (base.includes('rss-bridge.org')) {
-    return `${base}/?action=display&bridge=Twitter&context=By+username&u=${encodeURIComponent(handle)}&format=Atom`;
+  if (isBridge(base)) {
+    const bridgeName = config.bridge_name || 'TwitterV2';
+    return `${base}/?action=display&bridge=${encodeURIComponent(bridgeName)}&context=By+username&u=${encodeURIComponent(handle)}&format=Atom`;
   }
+  if (isNitterLike(base)) return `${base}/${handle}/rss`;
   return `${base}/twitter/user/${handle}`;
 }
 
@@ -40,18 +46,25 @@ function buildFeedUrl(proxyBase, source, config) {
 export async function fetchXProxy(source, httpFetch) {
   const config = JSON.parse(source.config || '{}');
   const candidates = [];
+  const envCandidates = (process.env.X_PROXY_CANDIDATES || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
 
   if (Array.isArray(config.proxy_candidates)) {
     for (const p of config.proxy_candidates) if (p) candidates.push(p);
   }
   if (config.proxy_base) candidates.push(config.proxy_base);
   if (config.rsshub_url) candidates.push(config.rsshub_url);
+  for (const candidate of envCandidates) candidates.push(candidate);
 
-  const defaults = [
-    'https://rsshub.app',
-    'https://twiiit.com',
-    'https://rss-bridge.org/bridge01'
-  ];
+  const defaults = envCandidates.length > 0
+    ? []
+    : [
+        'https://rsshub.app',
+        'https://rss-bridge.org/bridge01',
+        'https://twiiit.com'
+      ];
 
   for (const d of defaults) if (!candidates.includes(d)) candidates.push(d);
 

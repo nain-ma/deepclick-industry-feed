@@ -36,8 +36,8 @@
   },
   {
     "name": "Optimizely Blog",
-    "type": "rss",
-    "config": { "url": "https://www.optimizely.com/blog/rss.xml" }
+    "type": "website",
+    "config": { "url": "https://www.optimizely.com/insights/blog/" }
   },
   {
     "name": "AdExchanger",
