@@ -229,6 +229,22 @@ export function upsertUser(db, { googleId, email, name, avatar }) {
   return newUser;
 }
 
+export function ensureInternalUser(db, { email = 'internal@localhost', name = 'Internal User', slug = 'internal' } = {}) {
+  const existingByEmail = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (existingByEmail) return existingByEmail;
+
+  let candidate = slug;
+  let i = 1;
+  while (db.prepare('SELECT 1 FROM users WHERE slug = ?').get(candidate)) {
+    candidate = slug + i++;
+  }
+
+  db.prepare('INSERT INTO users (google_id, email, name, avatar, slug) VALUES (?, ?, ?, ?, ?)').run(null, email, name, null, candidate);
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  db.prepare('INSERT OR IGNORE INTO user_subscriptions (user_id, source_id) SELECT ?, id FROM sources WHERE is_public = 1').run(user.id);
+  return user;
+}
+
 export function createSession(db, { id, userId, expiresAt }) {
   db.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)').run(id, userId, expiresAt);
 }

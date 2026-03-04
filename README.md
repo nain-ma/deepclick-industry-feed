@@ -112,13 +112,26 @@ npm run repair:sources
 | 变量 | 说明 | 必填 | 默认值 |
 |------|------|------|--------|
 | `DIGEST_PORT` | 服务端口 | 否 | 8767 |
-| `API_KEY` | API 认证密钥（采集/统计端点） | 是 | - |
+| `API_KEY` | API 认证密钥（仅在关闭公开模式时生效） | 否 | - |
 | `AI_DIGEST_DB` | SQLite 数据库路径 | 否 | `data/digest.db` |
 | `GOOGLE_CLIENT_ID` | Google OAuth（用户登录） | 否 | - |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth | 否 | - |
 | `SESSION_SECRET` | Session 加密密钥 | 否 | - |
 | `ALLOWED_ORIGINS` | CORS 允许的源 | 否 | localhost |
 | `X_PROXY_CANDIDATES` | 自建 X 抓取候选地址，逗号分隔，建议填 RSS-Bridge / Nitter | 否 | - |
+| `PUBLIC_API_MODE` | 内部公开模式。开启后不需要 Google 登录，所有 API 直接可调用 | 否 | `true` |
+
+## 鉴权模式
+
+- 默认是内部公开模式：`PUBLIC_API_MODE=true`
+- 在该模式下：
+  - 不需要 Google OAuth
+  - 不需要 `API_KEY`
+  - 所有 API 都可直接调用
+  - 系统会自动使用一个共享的内部用户承接 sources / marks / packs / subscriptions 等需要用户上下文的操作
+- 如果需要恢复原来的登录/密钥模式：
+  - 设置 `PUBLIC_API_MODE=false`
+  - 同时配置 `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
 
 ## 源修复建议
 
