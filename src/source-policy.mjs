@@ -434,6 +434,47 @@ export function classifySource(source) {
   return { tier: 'watchlist', weight: 30, reason: 'default-watchlist' };
 }
 
+const QUESTION_PATTERNS = [
+  /\bhow\s+(to|do|does|can|did)\b/i,
+  /\bwhy\s+(is|are|do|does|did|has|have|won't|can't)\b/i,
+  /\bwhat\s+(is|are|does|happened|changed)\b/i,
+  /\bshould\s+(you|i|we)\b/i,
+  /怎么/,
+  /为什么/,
+  /如何/,
+  /是否/,
+  /什么是/,
+];
+
+const EXPANDABLE_PATTERNS = [
+  /\bupdate\b.*\bimpact\b/i,
+  /\bchange\b.*\baffect\b/i,
+  /\bwhat\s+it\s+means\b/i,
+  /\bwhat\s+you\s+need\s+to\s+know\b/i,
+  /\bhow\s+to\s+(fix|handle|deal|respond|adapt|prepare)\b/i,
+  /影响/,
+  /应对/,
+  /排查/,
+];
+
+/**
+ * Compute search potential score for an item.
+ * Measures how likely this topic would generate search traffic as an SEO blog.
+ */
+function searchPotentialScore(item) {
+  const title = String(item.title || '');
+  const text = textBlob(item);
+  let score = 0;
+
+  if (hasPattern(QUESTION_PATTERNS, title)) score += 10;
+  if (/\b(meta|facebook|tiktok|google ads|kwai|instagram)\b/i.test(title)) score += 8;
+  if (hasPattern(EXPANDABLE_PATTERNS, text)) score += 6;
+  if (item.source_layer === 'trend') score += 12;
+  if (/\b\d+%|\b(cpa|cvr|roi|roas|ctr)\b/i.test(text)) score += 8;
+
+  return score;
+}
+
 export function evaluateRawItem(item, options = {}) {
   const sourcePolicy = classifySource(item);
   const text = textBlob(item);
@@ -450,7 +491,9 @@ export function evaluateRawItem(item, options = {}) {
   const quantitativeSignal = /\b\d+%|\b(cpa|cvr|roi|roas|ctr)\b/i.test(text) ? 8 : 0;
   const eventBonus = eventTypeBonus(eventType);
   const eventSignals = evidenceSignals(text, item);
-  const score = sourcePolicy.weight +
+
+  // Relevance score (used as threshold, not primary ranking)
+  const relevanceScore = sourcePolicy.weight +
     Math.min(30, strongMatches * 12) +
     Math.min(12, weakMatches * 4) +
     quantitativeSignal +
@@ -461,35 +504,30 @@ export function evaluateRawItem(item, options = {}) {
     Math.min(45, excludeMatches * 15) -
     communityNoisePenalty;
 
+  const searchPotential = searchPotentialScore(item);
+
   const mode = options.mode || 'scheduled';
 
+  // Hard rejection rules (keep these strict)
   if (mode === 'scheduled') {
     if (sourcePolicy.tier === 'excluded') {
-      return { accepted: false, score, sourcePolicy, rejectReason: 'excluded-source' };
+      return { accepted: false, score: relevanceScore, sourcePolicy, rejectReason: 'excluded-source' };
     }
-    if (excludeMatches > 0 && strongMatches === 0) {
-      return { accepted: false, score, sourcePolicy, rejectReason: 'excluded-topic' };
+    if (excludeMatches > 0 && strongMatches === 0 && item.source_layer !== 'trend') {
+      return { accepted: false, score: relevanceScore, sourcePolicy, rejectReason: 'excluded-topic' };
     }
-    if ((sourcePolicy.tier === 'core' || sourcePolicy.tier === 'watchlist') && lowSignalTitle && strongMatches < 3) {
-      return { accepted: false, score, sourcePolicy, rejectReason: 'low-signal-title' };
+    if (lowSignalTitle && strongMatches < 3 && communityNoisePenalty > 30) {
+      return { accepted: false, score: relevanceScore, sourcePolicy, rejectReason: 'low-signal-title' };
     }
-    if (sourcePolicy.tier !== 'core' && lowSignalContent && quantitativeSignal === 0) {
-      return { accepted: false, score, sourcePolicy, rejectReason: 'low-signal-content' };
-    }
-    if (sourcePolicy.tier === 'core' && strongMatches === 0 && weakMatches === 0) {
-      return { accepted: false, score, sourcePolicy, rejectReason: 'core-without-signal' };
-    }
-    if (sourcePolicy.tier === 'watchlist' && strongMatches === 0) {
-      return { accepted: false, score, sourcePolicy, rejectReason: 'weak-watchlist-signal' };
-    }
-    if (score < (sourcePolicy.tier === 'core' ? 55 : 62)) {
-      return { accepted: false, score, sourcePolicy, rejectReason: 'low-score' };
+    if (lowSignalContent && quantitativeSignal === 0 && searchPotential === 0) {
+      return { accepted: false, score: relevanceScore, sourcePolicy, rejectReason: 'low-signal-content' };
     }
   }
 
   return {
     accepted: true,
-    score,
+    score: relevanceScore,
+    searchPotential,
     sourcePolicy,
     normalizedTitle: normalizeTitle(item.title),
     strongMatches,
@@ -507,6 +545,7 @@ export function evaluateRawItem(item, options = {}) {
 
 export function rankRawItems(items, options = {}) {
   const accepted = [];
+  const digestHistory = options.digestHistory || new Map();
 
   for (const item of items) {
     const evaluation = evaluateRawItem(item, options);
@@ -515,6 +554,7 @@ export function rankRawItems(items, options = {}) {
       ...item,
       cluster_key: buildClusterKey(item, evaluation),
       relevance_score: evaluation.score,
+      search_potential: evaluation.searchPotential,
       source_tier: evaluation.sourcePolicy.tier,
       source_weight: evaluation.sourcePolicy.weight,
       source_reason: evaluation.sourcePolicy.reason,
@@ -537,6 +577,7 @@ export function rankRawItems(items, options = {}) {
     });
   }
 
+  // --- Clustering: compute heat_score per cluster ---
   const clusters = new Map();
   for (const item of accepted) {
     const key = item.cluster_key || normalizeTitle(item.title);
@@ -544,20 +585,41 @@ export function rankRawItems(items, options = {}) {
       count: 0,
       sourceNames: new Set(),
       sourceTypes: new Set(),
+      sourceLayers: new Set(),
       hasOfficial: false,
       latestPublishedAt: '',
+      earliestPublishedAt: '',
     };
     current.count += 1;
     current.sourceNames.add(normalizedName(item));
     current.sourceTypes.add(String(item.type || 'unknown'));
+    current.sourceLayers.add(String(item.source_layer || 'publish'));
     if (officialSignalBonus(item) > 0) current.hasOfficial = true;
     const publishedAt = String(item.published_at || item.fetched_at || '');
     if (publishedAt > current.latestPublishedAt) current.latestPublishedAt = publishedAt;
+    if (!current.earliestPublishedAt || (publishedAt && publishedAt < current.earliestPublishedAt)) {
+      current.earliestPublishedAt = publishedAt;
+    }
     clusters.set(key, current);
   }
 
   for (const item of accepted) {
     const cluster = clusters.get(item.cluster_key || normalizeTitle(item.title));
+
+    // --- Heat score (primary ranking signal) ---
+    const crossSourceCount = Math.min(40, cluster.count * 8);
+    const sourceDiversity = Math.min(24, Math.max(0, cluster.sourceNames.size - 1) * 6);
+    const layerDiversity = Math.min(36, Math.max(0, cluster.sourceLayers.size - 1) * 12);
+    const timeConcentration = (() => {
+      if (!cluster.earliestPublishedAt || !cluster.latestPublishedAt) return 5;
+      const span = Date.parse(cluster.latestPublishedAt) - Date.parse(cluster.earliestPublishedAt);
+      const hours = span / (1000 * 60 * 60);
+      return hours <= 48 ? 10 : hours <= 168 ? 5 : 2;
+    })();
+    const engNorm = Math.min(15, engagementScore(item));
+    const heatScore = crossSourceCount + sourceDiversity + layerDiversity + timeConcentration + engNorm;
+
+    // --- Corroboration (kept for backward compatibility) ---
     const corroborationScore =
       Math.min(18, Math.max(0, cluster.count - 1) * 6) +
       Math.min(10, Math.max(0, cluster.sourceNames.size - 1) * 4) +
@@ -571,25 +633,61 @@ export function rankRawItems(items, options = {}) {
           : corroborationScore >= 8
             ? 'medium'
             : 'low';
+
+    // --- Novelty penalty (already-reported dedup) ---
+    const clusterKey = item.cluster_key || normalizeTitle(item.title);
+    const histEntry = digestHistory.get(clusterKey);
+    let noveltyPenalty = 0;
+    if (histEntry) {
+      const basePenalty = histEntry.recency === 0 ? -60 : histEntry.recency <= 2 ? -30 : -10;
+      noveltyPenalty = basePenalty;
+    }
+
+    // --- Final score: heat (50%) + search potential (30%) + relevance (20%) + novelty ---
+    const finalScore = Math.round(
+      heatScore * 0.5 +
+      item.search_potential * 0.3 +
+      item.relevance_score * 0.2 +
+      noveltyPenalty
+    );
+
+    // --- SEO readiness ---
+    const seoReadiness =
+      (heatScore >= 30 && item.search_potential >= 20) ? 'ready'
+      : (heatScore >= 15 || item.search_potential >= 15) ? 'maybe'
+      : 'low';
+
+    item.heat_score = heatScore;
+    item.novelty_penalty = noveltyPenalty;
+    item.final_score = finalScore;
+    item.seo_readiness = seoReadiness;
     item.corroboration_count = cluster.count;
     item.corroboration_sources = cluster.sourceNames.size;
     item.corroboration_score = corroborationScore;
     item.event_confidence = eventConfidence;
-    item.relevance_score += corroborationScore;
+    item.layer_diversity = cluster.sourceLayers.size;
     item.policy_metrics = JSON.stringify({
       ...JSON.parse(item.policy_metrics),
       corroboration_count: cluster.count,
       corroboration_sources: cluster.sourceNames.size,
       corroboration_score: corroborationScore,
       event_confidence: eventConfidence,
+      heat_score: heatScore,
+      search_potential: item.search_potential,
+      novelty_penalty: noveltyPenalty,
+      final_score: finalScore,
+      seo_readiness: seoReadiness,
+      layer_diversity: cluster.sourceLayers.size,
     });
   }
 
+  // Sort by final_score (heat-driven), then by recency
   accepted.sort((a, b) => {
-    if (b.relevance_score !== a.relevance_score) return b.relevance_score - a.relevance_score;
+    if (b.final_score !== a.final_score) return b.final_score - a.final_score;
     return String(b.published_at || b.fetched_at).localeCompare(String(a.published_at || a.fetched_at));
   });
 
+  // Deduplicate by cluster key
   const seenTitles = new Set();
   const ranked = [];
   for (const item of accepted) {
