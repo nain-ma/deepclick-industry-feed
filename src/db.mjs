@@ -115,6 +115,17 @@ export function getDb(dbPath) {
   } catch (e) {
     if (!e.message.includes('duplicate column') && !e.message.includes('already exists')) console.error('Migration 010:', e.message);
   }
+  // Migration 011: source layer classification + digest item history (idempotent)
+  try {
+    const sql11 = readFileSync(join(ROOT, 'migrations', '011_source_layer.sql'), 'utf8');
+    for (const stmt of sql11.split(';').map(s => s.trim()).filter(Boolean)) {
+      try { _db.exec(stmt + ';'); } catch (e) {
+        if (!e.message.includes('duplicate column') && !e.message.includes('already exists')) throw e;
+      }
+    }
+  } catch (e) {
+    if (!e.message.includes('duplicate column') && !e.message.includes('already exists')) console.error('Migration 011:', e.message);
+  }
   // Backfill slugs for existing users
   _backfillSlugs(_db);
   return _db;
