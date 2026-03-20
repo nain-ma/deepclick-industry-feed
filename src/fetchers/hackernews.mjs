@@ -22,11 +22,12 @@ const ALGOLIA_ENDPOINTS = {
   front_page: 'https://hn.algolia.com/api/v1/search?tags=front_page',
   top: 'https://hn.algolia.com/api/v1/search?tags=front_page',
   new: 'https://hn.algolia.com/api/v1/search_by_date?tags=story',
+  search: 'https://hn.algolia.com/api/v1/search?tags=story',
 };
 
 /**
  * Fetch Hacker News stories via Algolia Search API.
- * @param {object} source - Source row with .config JSON containing { filter?, min_score?, hits_per_page? }
+ * @param {object} source - Source row with .config JSON containing { filter?, query?, min_score?, hits_per_page? }
  * @param {function} httpFetch - SSRF-safe HTTP fetch function
  * @returns {Promise<NormalizedItem[]>}
  */
@@ -37,7 +38,10 @@ export async function fetchHackerNews(source, httpFetch) {
   const hitsPerPage = config.hits_per_page || 30;
 
   const baseUrl = ALGOLIA_ENDPOINTS[filter] || ALGOLIA_ENDPOINTS.top;
-  const url = `${baseUrl}&hitsPerPage=${hitsPerPage}`;
+  let url = `${baseUrl}&hitsPerPage=${hitsPerPage}`;
+  if (config.query) {
+    url += `&query=${encodeURIComponent(config.query)}`;
+  }
 
   const { body } = await httpFetch(url);
   const data = JSON.parse(body);

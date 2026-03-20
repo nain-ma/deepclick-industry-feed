@@ -1,13 +1,12 @@
 // src/fetchers/custom-api.mjs -- Generic JSON API fetcher with configurable field mapping
 // Parses any JSON API response at a configured dot-path and maps fields to NormalizedItem[].
-// Handles hackernews, github_trending, and custom_api source types via their configs.
+// Supports GET and POST methods, env var substitution in headers, and date templates in body.
 import { createHash } from 'crypto';
+import { gotScraping } from 'got-scraping';
+import { assertSafeFetchUrl } from '../http.mjs';
 
 // ── Helpers ──
 
-/**
- * Safely parse a date value to ISO string. Returns null on failure.
- */
 function safeDate(val) {
   if (val == null) return null;
   if (typeof val === 'number') {
@@ -23,10 +22,6 @@ function safeDate(val) {
   }
 }
 
-/**
- * Navigate into a nested object using a dot-separated path.
- * Returns undefined if the path does not exist.
- */
 function getNestedValue(obj, path) {
   if (!path || !obj) return undefined;
   return path.split('.').reduce((acc, key) => {
@@ -35,12 +30,52 @@ function getNestedValue(obj, path) {
   }, obj);
 }
 
+/**
+ * Replace ${ENV_VAR} patterns in a string with environment variable values.
+ */
+function substituteEnvVars(str) {
+  return String(str).replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] || '');
+}
+
+/**
+ * Replace date template patterns in strings/objects.
+ * Supported: {{now}}, {{3_days_ago}}, {{7_days_ago}}, {{N_days_ago}}
+ */
+function substituteDateTemplates(obj) {
+  const str = JSON.stringify(obj);
+  const replaced = str.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    if (key === 'now') return new Date().toISOString().slice(0, 10);
+    const daysAgoMatch = key.match(/^(\d+)_days_ago$/);
+    if (daysAgoMatch) {
+      const d = new Date();
+      d.setDate(d.getDate() - parseInt(daysAgoMatch[1]));
+      return d.toISOString().slice(0, 10);
+    }
+    return match;
+  });
+  return JSON.parse(replaced);
+}
+
+/**
+ * Process headers: substitute env vars in all header values.
+ */
+function processHeaders(headers) {
+  if (!headers) return {};
+  const result = {};
+  for (const [key, value] of Object.entries(headers)) {
+    result[key] = substituteEnvVars(value);
+  }
+  return result;
+}
+
 // ── Main export ──
 
 /**
  * Fetch and parse a JSON API response using configurable dot-path and field mapping.
- * @param {object} source - Source row with .config JSON containing { url, items_path?, title_field?, ... }
- * @param {function} httpFetch - SSRF-safe HTTP fetch function
+ * Supports GET (default) and POST methods, env var substitution in headers,
+ * and date template replacement in body.
+ * @param {object} source - Source row with .config JSON
+ * @param {function} httpFetch - SSRF-safe HTTP fetch function (used for GET)
  * @returns {Promise<NormalizedItem[]>}
  */
 export async function fetchCustomApi(source, httpFetch) {
@@ -55,8 +90,38 @@ export async function fetchCustomApi(source, httpFetch) {
   const dateField = config.date_field || 'published_at';
   const idField = config.id_field || 'id';
 
-  const { body } = await httpFetch(config.url);
-  const data = JSON.parse(body);
+  let data;
+  const method = (config.method || 'GET').toUpperCase();
+
+  if (method === 'POST') {
+    await assertSafeFetchUrl(config.url);
+    const headers = {
+      'Content-Type': 'application/json',
+      ...processHeaders(config.headers),
+    };
+    const body = config.body ? substituteDateTemplates(config.body) : undefined;
+
+    const response = await gotScraping({
+      url: config.url,
+      method: 'POST',
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      timeout: { request: 20000 },
+      responseType: 'text',
+      throwHttpErrors: false,
+      useHeaderGenerator: false,
+    });
+
+    if (response.statusCode >= 400) {
+      throw new Error(`http ${response.statusCode}`);
+    }
+    data = JSON.parse(response.body);
+  } else {
+    const fetchHeaders = config.headers ? processHeaders(config.headers) : undefined;
+    const fetchOptions = fetchHeaders ? { headers: fetchHeaders, useHeaderGenerator: false } : {};
+    const { body } = await httpFetch(config.url, 20000, 3, fetchOptions);
+    data = JSON.parse(body);
+  }
 
   // Navigate to items array using dot-path
   const items = getNestedValue(data, itemsPath);
@@ -70,7 +135,6 @@ export async function fetchCustomApi(source, httpFetch) {
     const rawDate = getNestedValue(item, dateField);
     const idValue = getNestedValue(item, idField);
 
-    // Dedup key: hash the id field value, falling back to url
     const dedupInput = String(idValue || url || title || Date.now());
     const dedup_key = createHash('sha256').update(dedupInput).digest('hex');
 

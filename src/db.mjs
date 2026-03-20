@@ -633,7 +633,8 @@ export function getRawItemsForDigest(db, { hours = 24, limit = 200, sourceIds, m
   let sql = `
     SELECT ri.id, ri.source_id, ri.title, ri.url, ri.author, ri.content,
            ri.published_at, ri.fetched_at, ri.metadata,
-           s.name as source_name, s.type as source_type
+           s.name as source_name, s.type as source_type,
+           s.layer as source_layer
     FROM raw_items ri
     JOIN sources s ON ri.source_id = s.id
     WHERE ri.fetched_at >= datetime('now', '-' || ? || ' hours')
@@ -658,5 +659,50 @@ export function getRawItemsForDigest(db, { hours = 24, limit = 200, sourceIds, m
     ...row,
     name: row.source_name,
     type: row.source_type,
-  })), { mode }).slice(0, limit);
+    source_layer: row.source_layer || 'publish',
+  })), { mode, digestHistory: getRecentDigestHistory(db) }).slice(0, limit);
+}
+
+/**
+ * Get cluster_keys from recent digests for novelty tracking.
+ * Returns a Map of cluster_key → { count, latestDigestId }.
+ */
+export function getRecentDigestHistory(db, maxDigests = 5) {
+  try {
+    const rows = db.prepare(`
+      SELECT dih.cluster_key, dih.digest_id, dih.created_at
+      FROM digest_item_history dih
+      JOIN (SELECT id FROM digests ORDER BY created_at DESC LIMIT ?) d ON dih.digest_id = d.id
+      ORDER BY dih.created_at DESC
+    `).all(maxDigests);
+
+    const history = new Map();
+    const digestIds = [...new Set(rows.map(r => r.digest_id))].sort((a, b) => b - a);
+    for (const row of rows) {
+      const recency = digestIds.indexOf(row.digest_id); // 0 = most recent
+      const existing = history.get(row.cluster_key);
+      if (!existing || recency < existing.recency) {
+        history.set(row.cluster_key, { count: (existing?.count || 0) + 1, recency });
+      }
+    }
+    return history;
+  } catch {
+    return new Map();
+  }
+}
+
+/**
+ * Record items that appeared in a digest for novelty tracking.
+ */
+export function insertDigestHistory(db, digestId, items) {
+  const stmt = db.prepare(`
+    INSERT INTO digest_item_history (digest_id, cluster_key, item_title)
+    VALUES (?, ?, ?)
+  `);
+  const insert = db.transaction((entries) => {
+    for (const { cluster_key, title } of entries) {
+      stmt.run(digestId, cluster_key, title || '');
+    }
+  });
+  insert(items);
 }
