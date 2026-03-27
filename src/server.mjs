@@ -381,7 +381,26 @@ const server = createServer(async (req, res) => {
     });
   }
 
-  // SPA route: / and /pack/:slug serve frontend HTML
+  // Static asset serving for Vite build output (JS, CSS, images)
+  if (req.method === 'GET' && /^\/(assets|favicon)/.test(path)) {
+    const MIME = { '.js': 'application/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff' };
+    const safePath = path.replace(/\.\./g, '');
+    const filePath = join(ROOT, 'web', safePath);
+    try {
+      const data = readFileSync(filePath);
+      const ext = safePath.match(/\.[^.]+$/)?.[0] || '';
+      res.writeHead(200, {
+        'Content-Type': MIME[ext] || 'application/octet-stream',
+        'Cache-Control': safePath.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
+      });
+      res.end(data);
+      return;
+    } catch {
+      res.writeHead(404); res.end('Not found'); return;
+    }
+  }
+
+  // SPA route: / and /pack/:slug serve frontend HTML (Vite build)
   if (req.method === 'GET' && (path === '/' || path.startsWith('/pack/'))) {
     try {
       const html = readFileSync(join(ROOT, 'web', 'index.html'), 'utf8');
