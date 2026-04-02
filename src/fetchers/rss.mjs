@@ -1,8 +1,41 @@
 // src/fetchers/rss.mjs -- RSS/Atom/JSON Feed fetcher
 // Uses @extractus/feed-extractor for parse-only feed parsing.
+// Includes 429 rate-limit aware retry with exponential backoff.
 import { createHash } from 'crypto';
 import { extractFromXml, extractFromJson } from '@extractus/feed-extractor';
+import { HttpRateLimitError } from '../http.mjs';
 import * as cheerio from 'cheerio';
+
+
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 3000;   // 3 s initial backoff
+const MAX_DELAY_MS = 60_000;  // cap at 60 s
+
+/**
+ * Sleep for the given number of milliseconds.
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Compute the delay before the next retry.
+ * If the server sent a Retry-After header, honour it (clamped to MAX_DELAY_MS).
+ * Otherwise use exponential backoff with jitter.
+ *
+ * @param {number} attempt - zero-based attempt index
+ * @param {HttpRateLimitError} [err] - the rate-limit error, if available
+ * @returns {number} delay in ms
+ */
+function retryDelay(attempt, err) {
+  if (err?.retryAfterMs != null) {
+    return Math.min(err.retryAfterMs + Math.random() * 1000, MAX_DELAY_MS);
+  }
+  // Exponential backoff: 3 s, 6 s, 12 s … with +-25 % jitter
+  const base = BASE_DELAY_MS * Math.pow(2, attempt);
+  const jitter = base * 0.25 * (Math.random() * 2 - 1);
+  return Math.min(base + jitter, MAX_DELAY_MS);
+}
 
 function safeDate(val) {
   if (val == null) return null;
@@ -64,14 +97,58 @@ function parseXmlFallback(body) {
 }
 
 /**
+ * Perform the raw HTTP fetch for an RSS feed, with automatic retry on 429.
+ * Respects the Retry-After header when present; otherwise uses exponential backoff.
+ *
+ * @param {string} url - Feed URL
+ * @param {function} httpFetch - SSRF-safe HTTP fetch function (from src/http.mjs)
+ * @returns {Promise<{ body: string, contentType: string }>}
+ */
+async function fetchWithRateLimitRetry(url, httpFetch) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await httpFetch(url);
+    } catch (err) {
+      if (err instanceof HttpRateLimitError && attempt < MAX_RETRIES) {
+        const delay = retryDelay(attempt, err);
+        console.warn(
+          `[rss] 429 from ${url} — retry ${attempt + 1}/${MAX_RETRIES} in ${Math.round(delay)} ms` +
+          (err.retryAfter ? ` (Retry-After: ${err.retryAfter})` : '')
+        );
+        await sleep(delay);
+        continue;
+      }
+      throw err;  // non-429 error or retries exhausted
+    }
+  }
+}
+
+/**
  * Fetch and parse an RSS/Atom/JSON feed from a source.
+ * Automatically retries on HTTP 429 with exponential backoff
+ * and Retry-After header support.
+ *
  * @param {object} source - Source row with .config JSON string containing { url }
  * @param {function} httpFetch - SSRF-safe HTTP fetch function (from src/http.mjs)
  * @returns {Promise<NormalizedItem[]>}
  */
+const CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.7632.117 Safari/537.36';
+
 export async function fetchRss(source, httpFetch) {
   const config = JSON.parse(source.config);
-  const { body, contentType } = await httpFetch(config.url, 20000, 3, { maxBodyBytes: 1_500_000 });
+  let { body, contentType } = await fetchWithRateLimitRetry(config.url, httpFetch);
+
+  // If server returned HTML (Cloudflare challenge, bot block, etc.),
+  // retry once with a real Chrome UA and header generator disabled.
+  if (body.trimStart().startsWith('<!') || body.trimStart().startsWith('<html')) {
+    console.warn(`[rss] Got HTML from ${config.url}, retrying with Chrome UA`);
+    const retry = await httpFetch(config.url, 20000, 3, {
+      useHeaderGenerator: false,
+      headers: { 'User-Agent': CHROME_UA, 'Accept': 'application/rss+xml, application/xml, text/xml, */*' },
+    });
+    body = retry.body;
+    contentType = retry.contentType;
+  }
 
   let feed;
   // Detect JSON Feed
@@ -86,11 +163,14 @@ export async function fetchRss(source, httpFetch) {
     }
   }
   if (!feed) {
-    try {
-      feed = extractFromXml(body);
-    } catch {
-      feed = parseXmlFallback(body);
+    const xmlBody = body.trim();
+
+    // Still HTML after retry — feed is truly inaccessible
+    if (xmlBody.startsWith('<!') || xmlBody.startsWith('<html')) {
+      throw new Error('Server returned HTML instead of RSS/XML (likely Cloudflare challenge or feed removed)');
     }
+
+    feed = extractFromXml(xmlBody);
   }
 
   const entries = feed?.entries || [];
