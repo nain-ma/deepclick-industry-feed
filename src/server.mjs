@@ -10,7 +10,12 @@ import { runCollection } from './collector.mjs';
 import { getDb, listDigests, getDigest, createDigest, listMarks, createMark, deleteMark, getConfig, setConfig, upsertUser, ensureInternalUser, createSession, getSession, deleteSession, listSources, getSource, createSource, updateSource, deleteSource, getSourceByTypeConfig, getUserBySlug, listDigestsByUser, countDigestsByUser, createPack, getPack, getPackBySlug, listPacks, incrementPackInstall, deletePack, listSubscriptions, subscribe, unsubscribe, bulkSubscribe, isSubscribed, createFeedback, getUserFeedback, getAllFeedback, replyToFeedback, updateFeedbackStatus, markFeedbackRead, getUnreadFeedbackCount, getRawItemStats, getRawItemsForDigest } from './db.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '..');
+// ROOT: prefer process.cwd() when it looks like the project root (has package.json).
+// This handles launchd / npm start spawning where import.meta.url may resolve
+// relative to the skills parent directory rather than the project itself.
+const ROOT = existsSync(join(process.cwd(), 'package.json'))
+  ? process.cwd()
+  : join(__dirname, '..');
 
 // ── Load .env ──
 const envPath = join(ROOT, '.env');
@@ -381,22 +386,38 @@ const server = createServer(async (req, res) => {
     });
   }
 
-  // Static asset serving for Vite build output (JS, CSS, images)
-  if (req.method === 'GET' && /^\/(assets|favicon)/.test(path)) {
-    const MIME = { '.js': 'application/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff' };
-    const safePath = path.replace(/\.\./g, '');
-    const filePath = join(ROOT, 'web', safePath);
+  // Static asset serving for built frontend files.
+  // Any non-API GET request that maps to an existing file under web/ should be served directly.
+  if ((req.method === 'GET' || req.method === 'HEAD') && !path.startsWith('/api/')) {
+    const MIME = {
+      '.js': 'application/javascript; charset=utf-8',
+      '.css': 'text/css; charset=utf-8',
+      '.svg': 'image/svg+xml',
+      '.png': 'image/png',
+      '.ico': 'image/x-icon',
+      '.woff2': 'font/woff2',
+      '.woff': 'font/woff',
+      '.ttf': 'font/ttf',
+      '.json': 'application/json; charset=utf-8',
+      '.map': 'application/json; charset=utf-8'
+    };
     try {
-      const data = readFileSync(filePath);
-      const ext = safePath.match(/\.[^.]+$/)?.[0] || '';
-      res.writeHead(200, {
-        'Content-Type': MIME[ext] || 'application/octet-stream',
-        'Cache-Control': safePath.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
-      });
-      res.end(data);
-      return;
-    } catch {
-      res.writeHead(404); res.end('Not found'); return;
+      const safePath = path.replace(/\.\./g, '').replace(/^\//, '');
+      if (safePath) {
+        const filePath = join(ROOT, 'web', safePath);
+        if (existsSync(filePath)) {
+          const data = readFileSync(filePath);
+          const ext = safePath.match(/\.[^.]+$/)?.[0] || '';
+          res.writeHead(200, {
+            'Content-Type': MIME[ext] || 'application/octet-stream',
+            'Cache-Control': safePath.startsWith('assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
+          });
+          res.end(data);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('[static-error]', path, e?.message || e);
     }
   }
 
